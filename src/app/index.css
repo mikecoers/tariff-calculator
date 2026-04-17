@@ -11,7 +11,9 @@ body,
 #root {
   height: 100%;
   overscroll-behavior-y: contain;
-  background: radial-gradient(ellipse at top, #14233d 0%, #070b16 60%);
+  background:
+    radial-gradient(ellipse at top, #6d1a33 0%, #4a0e24 55%, #2e0917 100%);
+  color: #fff5e8;
 }
 
 body {
@@ -24,27 +26,31 @@ body {
            transition-all active:translate-y-[2px] active:shadow-none select-none
            disabled:opacity-40 disabled:pointer-events-none;
   }
+  /* Primary = powder-blue (Phillies signature) */
   .tap-btn-primary {
-    @apply tap-btn text-ump-bg shadow-tap shadow-glow;
-    background-image: linear-gradient(180deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%);
+    @apply tap-btn text-phil-maroonDark shadow-tap shadow-glow;
+    background-image: linear-gradient(180deg, #dbeaf4 0%, #a4c8e1 55%, #7fb3d1 100%);
   }
   .tap-btn-success {
     @apply tap-btn text-white shadow-tap shadow-glowOk;
-    background-image: linear-gradient(180deg, #4ade80 0%, #22c55e 60%, #15803d 100%);
+    background-image: linear-gradient(180deg, #6ee7b7 0%, #10b981 60%, #047857 100%);
   }
   .tap-btn-danger {
     @apply tap-btn text-white shadow-tap shadow-glowCrit;
-    background-image: linear-gradient(180deg, #f87171 0%, #ef4444 60%, #b91c1c 100%);
+    background-image: linear-gradient(180deg, #fca5a5 0%, #ef4444 60%, #991b1b 100%);
   }
+  /* Neutral = maroon */
   .tap-btn-neutral {
-    @apply tap-btn bg-ump-cardHi text-ump-ink border border-ump-line shadow-tap;
+    @apply tap-btn text-phil-cream border shadow-tap;
+    background-image: linear-gradient(180deg, #8a2347 0%, #6d1a33 70%, #4a0e24 100%);
+    border-color: #8a2347;
   }
   .tap-btn-ghost {
-    @apply tap-btn bg-transparent text-ump-ink border border-ump-line;
+    @apply tap-btn bg-transparent text-phil-cream border border-phil-maroonLight;
   }
   .tap-btn-violet {
     @apply tap-btn text-white shadow-tap;
-    background-image: linear-gradient(180deg, #a78bfa 0%, #7c3aed 60%, #5b21b6 100%);
+    background-image: linear-gradient(180deg, #f9a8d4 0%, #db2777 55%, #9d174d 100%);
   }
   .tap-btn-lg {
     @apply min-h-[64px] px-4 text-lg;
@@ -57,43 +63,43 @@ body {
   }
 
   .card {
-    @apply rounded-2xl bg-ump-card border border-ump-line p-3;
-    background-image: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 60%);
+    @apply rounded-2xl border border-ump-line p-3 text-phil-cream;
+    background-image: linear-gradient(160deg, rgba(255,245,232,0.08), rgba(255,245,232,0.02) 60%), linear-gradient(180deg, #4a0e24 0%, #2e0917 100%);
   }
   .card-bright {
-    @apply rounded-2xl border p-3 text-ump-ink;
-    background-image: linear-gradient(160deg, rgba(56,189,248,0.12), rgba(139,92,246,0.08));
-    border-color: rgba(56,189,248,0.3);
+    @apply rounded-2xl border p-3 text-phil-cream;
+    background-image: linear-gradient(160deg, rgba(164,200,225,0.25), rgba(164,200,225,0.05));
+    border-color: rgba(164,200,225,0.4);
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-ump-line bg-ump-cardHi px-2 py-0.5 text-[11px] font-bold text-ump-dim;
+    @apply inline-flex items-center gap-1 rounded-full border border-ump-line bg-phil-maroon px-2 py-0.5 text-[11px] font-bold text-phil-creamDim;
   }
-  .chip-ok { @apply chip border-ump-ok/50 text-ump-ok bg-ump-ok/10; }
-  .chip-warn { @apply chip border-ump-warn/50 text-ump-warn bg-ump-warn/10; }
-  .chip-crit { @apply chip border-ump-crit/60 text-ump-crit bg-ump-crit/10; }
-  .chip-info { @apply chip border-ump-info/40 text-ump-info bg-ump-info/10; }
+  .chip-ok { @apply chip border-ump-ok/60 text-ump-ok bg-ump-ok/10; }
+  .chip-warn { @apply chip border-ump-warn/60 text-ump-warn bg-ump-warn/10; }
+  .chip-crit { @apply chip border-ump-crit/70 text-ump-crit bg-ump-crit/15; }
+  .chip-info { @apply chip border-phil-blue/60 text-phil-blue bg-phil-blue/10; }
 
   .field-label {
-    @apply text-[10px] uppercase tracking-widest text-ump-dim font-bold;
+    @apply text-[10px] uppercase tracking-widest text-phil-creamDim font-bold;
   }
 
   .input {
-    @apply w-full rounded-xl bg-ump-bg border border-ump-line px-3 py-3 text-ump-ink
-           focus:outline-none focus:border-ump-accent placeholder:text-ump-dim;
+    @apply w-full rounded-xl bg-phil-maroonDarker border border-ump-line px-3 py-3 text-phil-cream
+           focus:outline-none focus:border-phil-blue placeholder:text-phil-creamDim/60;
   }
 
   .score-tile {
-    @apply rounded-xl py-2 px-3 text-center transition;
-    background-image: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 70%);
+    @apply rounded-xl py-2 px-3 text-center transition border border-ump-line;
+    background-image: linear-gradient(160deg, rgba(255,245,232,0.05), rgba(255,245,232,0) 70%);
   }
   .score-tile-active-us {
-    background-image: linear-gradient(160deg, rgba(34,197,94,0.2), rgba(22,163,74,0.05));
-    box-shadow: inset 0 0 0 1px rgba(34,197,94,0.5), 0 0 25px -10px rgba(34,197,94,0.6);
+    background-image: linear-gradient(160deg, rgba(164,200,225,0.3), rgba(127,179,209,0.05));
+    box-shadow: inset 0 0 0 1px rgba(164,200,225,0.6), 0 0 28px -10px rgba(164,200,225,0.7);
   }
   .score-tile-active-opp {
-    background-image: linear-gradient(160deg, rgba(245,158,11,0.2), rgba(217,119,6,0.05));
-    box-shadow: inset 0 0 0 1px rgba(245,158,11,0.5), 0 0 25px -10px rgba(245,158,11,0.6);
+    background-image: linear-gradient(160deg, rgba(251,191,36,0.2), rgba(217,119,6,0.05));
+    box-shadow: inset 0 0 0 1px rgba(251,191,36,0.5), 0 0 25px -10px rgba(251,191,36,0.55);
   }
 }
 
@@ -111,8 +117,10 @@ body {
 }
 .animate-pop-in { animation: pop-in 180ms ease-out; }
 
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(34,197,94,0.5); }
-  50%      { box-shadow: 0 0 24px rgba(34,197,94,0.85); }
+@keyframes glow-blue {
+  0%, 100% { box-shadow: 0 0 14px rgba(164,200,225,0.55); }
+  50%      { box-shadow: 0 0 30px rgba(164,200,225,0.85); }
 }
-.animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
+.animate-glow { animation: glow-blue 2s ease-in-out infinite; }
+
+::selection { background: #a4c8e1; color: #2e0917; }

@@ -130,16 +130,16 @@ export default function GameScreen() {
         </div>
 
         {ourBatting && batter && (
-          <div className="mt-2 rounded-xl border-2 border-ump-ok/60 bg-ump-ok/10 px-3 py-1.5 flex items-center gap-2 animate-glow">
+          <div className="mt-2 rounded-xl border-2 border-phil-blue/70 bg-phil-blue/15 px-3 py-1.5 flex items-center gap-2 animate-glow">
             <span className="text-xl">🏏</span>
             <div className="flex-1 min-w-0">
-              <div className="text-[9px] uppercase font-black text-ump-ok tracking-widest flex items-center gap-2">
+              <div className="text-[9px] uppercase font-black text-phil-blue tracking-widest flex items-center gap-2">
                 Batter up · #{game.currentBatterSlot + 1}
                 {coachPitch && <span className="chip-warn">COACH PITCH</span>}
               </div>
-              <div className="text-base font-bold truncate text-ump-ink">
+              <div className="text-base font-bold truncate text-phil-cream">
                 {batter.displayName}
-                {onDeck && <span className="ml-2 text-[10px] text-ump-dim font-medium">on deck: {onDeck.displayName}</span>}
+                {onDeck && <span className="ml-2 text-[10px] text-phil-creamDim font-medium">on deck: {onDeck.displayName}</span>}
               </div>
             </div>
           </div>

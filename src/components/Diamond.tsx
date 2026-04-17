@@ -86,7 +86,7 @@ function BaseMarker({
   };
   const filledBg = home
     ? 'bg-grad-ok border-white shadow-glowOk'
-    : 'bg-grad-amber border-white shadow-glow';
+    : 'bg-grad-blue border-white shadow-glow';
   const emptyBg = 'bg-white/90 border-white/60';
   return (
     <div className={`absolute ${posStyles[position]} flex flex-col items-center`}>

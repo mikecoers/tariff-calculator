@@ -77,8 +77,8 @@ export default function HomeScreen() {
       </header>
 
       {inProgress ? (
-        <div className="card border-ump-accent/70">
-          <div className="text-xs text-ump-accent font-semibold uppercase">Game in progress</div>
+        <div className="card border-phil-blue/70 shadow-glow">
+          <div className="text-xs text-phil-blue font-bold uppercase tracking-widest">Game in progress</div>
           <div className="text-lg font-bold mt-1">vs {inProgress.opponent}</div>
           <div className="text-sm text-ump-dim mb-3">
             Inning {inProgress.inning} {inProgress.halfInning === 'top' ? '▲' : '▼'} · {inProgress.awayScore}-{inProgress.homeScore}

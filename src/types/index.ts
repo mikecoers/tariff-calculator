@@ -79,6 +79,10 @@ export interface Game {
   rosterPlayerIds: ID[];
   absentPlayerIds: ID[];
   opponentBatterNumber?: number;
+  firstBasePlayerId?: ID | null;
+  secondBasePlayerId?: ID | null;
+  thirdBasePlayerId?: ID | null;
+  lastPlay?: string;
   createdAt: number;
   updatedAt: number;
 }

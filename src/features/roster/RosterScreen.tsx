@@ -231,20 +231,6 @@ export default function RosterScreen() {
                 />
               </label>
               <label>
-                <span className="field-label">Age</span>
-                <input
-                  type="number"
-                  className="input mt-1"
-                  value={current.age ?? ''}
-                  onChange={(e) => {
-                    const v = e.target.value ? Number(e.target.value) : undefined;
-                    creating
-                      ? setCreating({ ...current, age: v })
-                      : setEditing({ ...(current as Player), age: v });
-                  }}
-                />
-              </label>
-              <label>
                 <span className="field-label">Bats / Throws</span>
                 <div className="flex gap-1 mt-1">
                   <select
@@ -276,6 +262,32 @@ export default function RosterScreen() {
                   </select>
                 </div>
               </label>
+            </div>
+
+            <div>
+              <span className="field-label">Age (drives daily pitch cap)</span>
+              <div className="grid grid-cols-6 gap-1 mt-1">
+                {[7, 8, 9, 10, 11, 12].map((n) => {
+                  const on = current.age === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`tap-btn tap-btn-sm ${on ? 'tap-btn-primary' : 'tap-btn-neutral'}`}
+                      onClick={() => {
+                        creating
+                          ? setCreating({ ...current, age: n })
+                          : setEditing({ ...(current as Player), age: n });
+                      }}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-ump-dim mt-1">
+                7–8: 50 pitches · 9–10: 75 · 11–12: 85 per day
+              </p>
             </div>
 
             <div>

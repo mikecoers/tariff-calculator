@@ -57,7 +57,10 @@ export default function NewGameScreen() {
       startTime: now(),
       rosterPlayerIds: available.map((p) => p.id),
       absentPlayerIds: Array.from(absent),
-      opponentBatterNumber: 1
+      opponentBatterNumber: 1,
+      firstBasePlayerId: null,
+      secondBasePlayerId: null,
+      thirdBasePlayerId: null
     });
     await lineupsRepo.upsert({
       gameId: game.id,

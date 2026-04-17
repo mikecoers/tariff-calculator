@@ -11,7 +11,6 @@ import PlayingTimeBanner from '@/components/PlayingTimeBanner';
 import UndoHistory from '@/components/UndoHistory';
 import CountDisplay from '@/components/CountDisplay';
 import Lineup from '@/components/Lineup';
-import DefenseChart from '@/components/DefenseChart';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -32,6 +31,7 @@ export default function GameScreen() {
   const [undoOpen, setUndoOpen] = useState(false);
   const [lineupOpen, setLineupOpen] = useState(false);
   const [baseMenu, setBaseMenu] = useState<BaseKey | null>(null);
+  const [flash, setFlash] = useState(0);
   const promptedForHalf = useRef<string>('');
 
   useEffect(() => {
@@ -90,7 +90,6 @@ export default function GameScreen() {
     : undefined;
   const inHole = inHoleId ? playersById.get(inHoleId) : undefined;
 
-  // Defensive innings count per player across all innings so far
   const inningDefCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const d of defense) {
@@ -125,10 +124,6 @@ export default function GameScreen() {
   const usScore = usAreHome ? game.homeScore : game.awayScore;
   const oppScore = usAreHome ? game.awayScore : game.homeScore;
 
-  const pitcherBarPct = pitcherStatus
-    ? Math.min(100, (pitcherStatus.pitchesThrown / Math.max(1, pitcherStatus.dailyMax)) * 100)
-    : 0;
-
   const runnerOnBase = (b: BaseKey) =>
     b === 'first' ? firstName : b === 'second' ? secondName : thirdName;
 
@@ -148,129 +143,138 @@ export default function GameScreen() {
     }
   };
 
+  const withFlash = (fn: () => void) => {
+    fn();
+    setFlash((x) => x + 1);
+  };
+
+  const halfLabel = game.halfInning === 'top' ? 'TOP' : 'BOT';
+  const firstAlert = criticalAlerts[0] ?? warnings[0];
+
   return (
     <div className="h-dvh flex flex-col overflow-hidden safe-top">
-      <header className="shrink-0 px-3 pt-1.5 pb-1.5 border-b border-phil-blueDeep bg-white/70 backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => nav('/home')} aria-label="Exit">
+      {/* HEADER ---------------------------------------------------------- */}
+      <header className="shrink-0 px-3 pt-1 pb-2">
+        <div className="flex items-center justify-between">
+          <button
+            className="h-8 w-8 rounded-full glass flex items-center justify-center text-phil-maroonDark text-sm"
+            onClick={() => nav('/home')}
+            aria-label="Exit"
+          >
             ✕
           </button>
+          <div className="text-[11px] uppercase tracking-[0.2em] font-bold text-phil-maroon">
+            vs {game.opponent}
+          </div>
+          <button
+            className="h-8 w-8 rounded-full glass flex items-center justify-center text-phil-maroonDark text-sm"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Menu"
+          >
+            ⋯
+          </button>
+        </div>
+
+        {/* Hero score */}
+        <div
+          key={flash}
+          className={`mt-2 glass-solid rounded-2xl px-3 py-2.5 flex items-center justify-between ${flash ? 'animate-flash' : ''}`}
+        >
           <div className="flex-1 text-center">
-            <div className="text-[9px] uppercase tracking-widest text-phil-maroon/70">
-              {settings.seasonPhase.toUpperCase()} · vs {game.opponent}
-            </div>
-            <div className="font-display text-xl leading-none tracking-wider text-phil-maroonDark">
-              {game.halfInning === 'top' ? '▲' : '▼'} INN {game.inning}
-            </div>
+            <div className={`label ${oppBatting ? 'text-ump-warn' : ''}`}>{game.opponent}</div>
+            <div className="font-mono text-5xl font-black leading-none text-phil-maroonDark">{oppScore}</div>
+            {oppBatting && <div className="text-[9px] text-ump-warn font-bold mt-0.5">AT BAT</div>}
           </div>
-          <div className="flex gap-1">
-            <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => { haptic('light'); nav(`/game/${game.id}/scoreboard`); }} aria-label="Scoreboard">
-              📺
-            </button>
-            <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setLegendOpen(true)} aria-label="Legend">?</button>
-            <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setMenuOpen(true)} aria-label="Menu">⋯</button>
+          <div className="mx-3 self-stretch border-l border-white/80" />
+          <div className="flex-1 text-center">
+            <div className={`label ${ourBatting ? 'text-phil-maroon' : ''}`}>Phillies</div>
+            <div className="font-mono text-5xl font-black leading-none text-phil-maroonDark">{usScore}</div>
+            {ourBatting && <div className="text-[9px] text-phil-maroon font-bold mt-0.5">AT BAT</div>}
           </div>
         </div>
 
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          <div className={`score-tile py-1 ${oppBatting ? 'score-tile-active-opp' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-ump-warn truncate leading-tight">{game.opponent}</div>
-            <div className="font-mono text-xl font-black text-phil-maroonDark leading-none">{oppScore}</div>
-          </div>
-          <div className={`score-tile py-1 ${ourBatting ? 'score-tile-active-us' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-phil-maroon truncate leading-tight">Phillies</div>
-            <div className="font-mono text-xl font-black text-phil-maroonDark leading-none">{usScore}</div>
-          </div>
-        </div>
-
-        <div className="mt-1.5">
+        {/* Inning · Count · Outs — one tight line */}
+        <div className="mt-1.5 flex items-center justify-between px-1">
+          <span className="text-[11px] font-black tracking-widest text-phil-maroonDark">
+            {halfLabel} {game.inning}
+          </span>
           <CountDisplay
             balls={game.balls}
             strikes={game.strikes}
             outs={game.outs}
             coachPitch={!!game.coachPitchActive}
           />
+          {game.coachPitchActive ? (
+            <span className="chip-warn">CP</span>
+          ) : (
+            <span className="w-9" />
+          )}
         </div>
 
-        {game.coachPitchActive && (
-          <div className="mt-2 rounded-xl border-2 border-ump-warn/70 bg-ump-warn/15 px-3 py-1.5 flex items-center gap-2 animate-pulse-slow">
-            <span className="text-2xl">🎯</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase font-black text-ump-warn tracking-widest">
-                Coach pitch active
-              </div>
-              <div className="text-sm font-bold text-phil-maroonDark truncate">
-                Every coach pitch = STRIKE · no walks · 3 strikes = out
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-1.5">
-          <PlayingTimeBanner players={players} assignments={defense} game={game} settings={settings} />
-        </div>
-
-        {ourBatting && batter && (
+        {/* Batter / opp-at-bat strip — flat, one line */}
+        {ourBatting && batter ? (
           <button
             onClick={() => { haptic('light'); setLineupOpen(true); }}
-            className="mt-1.5 w-full text-left rounded-xl border-2 border-phil-maroon bg-white px-2.5 py-1 flex items-center gap-2 animate-glow"
+            className="mt-1.5 w-full text-left glass rounded-2xl px-3 py-2 flex items-center gap-2"
           >
-            <span className="text-lg">🏏</span>
+            <div className="h-9 w-9 rounded-full bg-phil-maroon text-phil-cream flex items-center justify-center text-[11px] font-black">
+              #{game.currentBatterSlot + 1}
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[9px] uppercase font-black text-phil-maroon tracking-widest shrink-0">
-                  #{game.currentBatterSlot + 1}
-                </span>
-                <span className="text-sm font-bold truncate text-phil-maroonDark">
-                  {batter.displayName}
-                </span>
-                {coachPitch && <span className="chip-warn ml-auto shrink-0">CP</span>}
+              <div className="font-bold text-[15px] text-phil-maroonDark truncate leading-tight">
+                {batter.displayName}
               </div>
-              <div className="text-[10px] text-phil-maroon/70 truncate leading-tight">
+              <div className="text-[11px] text-phil-maroon/70 truncate leading-tight">
                 {onDeck && <>Next: <b>{onDeck.displayName}</b></>}
-                {inHole && <> · <b>{inHole.displayName}</b></>}
+                {inHole && <> · {inHole.displayName}</>}
               </div>
             </div>
+            <span className="label">lineup →</span>
           </button>
-        )}
-        {oppBatting && (
-          <div className="mt-1.5 rounded-xl border border-phil-maroon bg-white px-2.5 py-1 flex items-center justify-between">
-            <div className="min-w-0">
-              <div className="text-[9px] uppercase font-black text-phil-maroon tracking-widest leading-tight">Opp at bat</div>
-              <div className="text-sm font-bold text-phil-maroonDark truncate">#{game.opponentBatterNumber ?? '?'} in their order</div>
+        ) : (
+          oppBatting && (
+            <div className="mt-1.5 glass rounded-2xl px-3 py-2 flex items-center gap-2">
+              <div className="h-9 w-9 rounded-full bg-ump-warn/90 text-white flex items-center justify-center text-[11px] font-black">
+                #{game.opponentBatterNumber ?? '?'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-[15px] text-phil-maroonDark leading-tight">Opp batter #{game.opponentBatterNumber ?? '?'}</div>
+                <div className="text-[11px] text-phil-maroon/70 leading-tight">Their order · tap next when they change</div>
+              </div>
+              <button
+                className="tap-btn tap-btn-ghost tap-btn-xs"
+                onClick={async () => {
+                  haptic('light');
+                  await gamesRepo.update(game.id, {
+                    opponentBatterNumber: ((game.opponentBatterNumber ?? 1) % 9) + 1
+                  });
+                  refresh();
+                }}
+              >
+                Next →
+              </button>
             </div>
-            <button
-              className="tap-btn tap-btn-ghost tap-btn-sm"
-              onClick={async () => {
-                haptic('light');
-                await gamesRepo.update(game.id, {
-                  opponentBatterNumber: ((game.opponentBatterNumber ?? 1) % 9) + 1
-                });
-                refresh();
-              }}
-            >
-              Next →
-            </button>
-          </div>
+          )
         )}
 
-        {(criticalAlerts.length > 0 || warnings.length > 0) && (
-          <div
-            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ${
-              criticalAlerts.length > 0 ? 'bg-ump-crit/15 text-ump-crit' : 'bg-ump-warn/15 text-ump-warn'
-            }`}
-          >
-            {criticalAlerts[0]?.message ?? warnings[0]?.message}
-            {liveAlerts.length > 1 && <span className="ml-1 opacity-70">(+{liveAlerts.length - 1})</span>}
-          </div>
-        )}
+        {/* Context chips — playing-time + alerts */}
+        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+          <PlayingTimeBanner players={players} assignments={defense} game={game} settings={settings} />
+          {firstAlert && (
+            <span className={firstAlert.severity === 'critical' ? 'chip-crit' : 'chip-warn'}>
+              {firstAlert.severity === 'critical' ? '⚠' : '!'} {firstAlert.message}
+              {liveAlerts.length > 1 && <span className="opacity-70 ml-1">+{liveAlerts.length - 1}</span>}
+            </span>
+          )}
+        </div>
       </header>
 
-      <main className="flex-1 min-h-0 overflow-hidden px-3 py-1.5 flex flex-col gap-1.5 items-stretch">
+      {/* MAIN — diamond only --------------------------------------------- */}
+      <main className="flex-1 min-h-0 overflow-hidden px-3 flex flex-col gap-1.5">
         <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="w-full h-full max-h-[42vh] flex items-center justify-center">
+          <div className="w-full h-full max-h-[38vh] flex items-center justify-center">
             <Diamond
-              batterName={ourBatting ? batter?.displayName : `Opp #${game.opponentBatterNumber ?? '?'}`}
+              batterName={ourBatting ? batter?.displayName : null}
               firstName={firstName}
               secondName={secondName}
               thirdName={thirdName}
@@ -290,27 +294,24 @@ export default function GameScreen() {
         </div>
 
         {game.lastPlay && (
-          <div className="text-center text-[11px] text-phil-maroon/70 truncate leading-tight">
-            <span className="opacity-60">Last:</span> {game.lastPlay}
+          <div className="text-center text-[11px] text-phil-maroon/80 truncate leading-tight">
+            <span className="opacity-60">Last:</span> <b>{game.lastPlay}</b>
           </div>
         )}
 
         {oppBatting && (
           <button
             onClick={() => { haptic('light'); setPitcherOpen(true); }}
-            className="w-full text-left rounded-xl bg-white border border-phil-blueDeep/60 px-2.5 py-1.5"
+            className="w-full text-left glass rounded-2xl px-3 py-1.5 flex items-center gap-2"
           >
-            <div className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase font-bold text-phil-maroon/80 tracking-widest leading-tight flex items-center gap-1">
-                  P · inn {game.inning}
-                  <span className="chip-info">tap to change</span>
-                </div>
-                <div className="font-bold truncate text-sm leading-tight">
-                  {currentPitcher?.displayName ?? 'TAP TO SELECT'}
-                </div>
+            <div className="min-w-0 flex-1">
+              <div className="label">Our pitcher · inn {game.inning}</div>
+              <div className="font-bold text-sm text-phil-maroonDark truncate">
+                {currentPitcher?.displayName ?? 'Tap to select'}
               </div>
-              {pitcherStatus && currentPitcher ? (
+            </div>
+            {pitcherStatus && currentPitcher ? (
+              <div className="flex flex-col items-end gap-1">
                 <span
                   className={
                     pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
@@ -322,60 +323,71 @@ export default function GameScreen() {
                 >
                   {pitcherStatus.pitchesThrown}/{pitcherStatus.dailyMax}
                 </span>
-              ) : (
-                <span className="chip-warn">no pitcher</span>
-              )}
-            </div>
-            {pitcherStatus && (
-              <div className="mt-1 h-1 rounded-full bg-phil-blueLight overflow-hidden">
-                <div
-                  className={`h-full transition-all ${
-                    pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
-                      ? 'bg-grad-crit'
-                      : pitcherStatus.tier === 'yellow'
-                      ? 'bg-grad-amber'
-                      : 'bg-grad-ok'
-                  }`}
-                  style={{ width: `${pitcherBarPct}%` }}
-                />
+                <div className="w-16 h-1 rounded-full bg-phil-maroon/15 overflow-hidden">
+                  <div
+                    className={`h-full ${
+                      pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
+                        ? 'bg-ump-crit'
+                        : pitcherStatus.tier === 'yellow'
+                        ? 'bg-ump-warn'
+                        : 'bg-ump-ok'
+                    }`}
+                    style={{ width: `${Math.min(100, (pitcherStatus.pitchesThrown / Math.max(1, pitcherStatus.dailyMax)) * 100)}%` }}
+                  />
+                </div>
               </div>
+            ) : (
+              <span className="chip-warn">no pitcher</span>
             )}
           </button>
         )}
-
-        <div className="grid grid-cols-4 gap-1.5">
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setLineupOpen(true)}>📋</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setDefenseOpen(true)}>🧤</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setAbsentOpen(true)}>👥</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setUndoOpen(true)}>↶</button>
-        </div>
       </main>
 
-      <footer className="shrink-0 px-2 pt-1.5 pb-0.5 safe-bottom bg-white/85 backdrop-blur border-t border-phil-blueDeep">
-        <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+      {/* FOOTER — equal-weight pitch row + semantic outcome row ---------- */}
+      <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom">
+        <div className="glass rounded-2xl p-1.5 flex gap-1.5">
           <button
-            className="tap-btn tap-btn-neutral tap-btn-md"
+            className="tap-btn tap-btn-neutral tap-btn-md flex-1"
             disabled={!!game.coachPitchActive}
-            onClick={() => { haptic('light'); addPitch('ball'); }}
+            onClick={() => withFlash(() => { haptic('light'); addPitch('ball'); })}
           >
-            BALL
+            Ball
           </button>
           <button
-            className={`tap-btn tap-btn-primary tap-btn-md ${game.coachPitchActive ? 'ring-4 ring-ump-warn/60' : ''}`}
-            onClick={() => { haptic('medium'); addPitch('strike'); }}
+            className={`tap-btn tap-btn-neutral tap-btn-md flex-1 ${game.coachPitchActive ? 'ring-2 ring-ump-warn/60' : ''}`}
+            onClick={() => withFlash(() => { haptic('medium'); addPitch('strike'); })}
           >
-            STRIKE
+            Strike
           </button>
           <button
-            className="tap-btn tap-btn-neutral tap-btn-md"
-            onClick={() => { haptic('light'); addPitch('foul'); }}
+            className="tap-btn tap-btn-neutral tap-btn-md flex-1"
+            onClick={() => withFlash(() => { haptic('light'); addPitch('foul'); })}
           >
-            FOUL
+            Foul
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <button className="tap-btn tap-btn-danger tap-btn-md" onClick={() => { haptic('warning'); resolveAtBat('groundout', 0, 1); }}>OUT</button>
-          <button className="tap-btn tap-btn-success tap-btn-md" onClick={() => { haptic('medium'); setResolveOpen(true); }}>IN PLAY</button>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          <button
+            className="tap-btn tap-btn-danger tap-btn-md"
+            onClick={() => withFlash(() => { haptic('warning'); resolveAtBat('groundout', 0, 1); })}
+          >
+            Out
+          </button>
+          <button
+            className="tap-btn tap-btn-success tap-btn-md"
+            onClick={() => withFlash(() => { haptic('medium'); setResolveOpen(true); })}
+          >
+            In Play
+          </button>
+        </div>
+
+        {/* Quick actions — equal weight, icon only */}
+        <div className="mt-1.5 grid grid-cols-5 gap-1.5">
+          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setLineupOpen(true)} aria-label="Lineup">📋</button>
+          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setDefenseOpen(true)} aria-label="Defense">🧤</button>
+          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setAbsentOpen(true)} aria-label="Absent">👥</button>
+          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setUndoOpen(true)} aria-label="Undo">↶</button>
+          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => nav(`/game/${game.id}/scoreboard`)} aria-label="Scoreboard">📺</button>
         </div>
       </footer>
 
@@ -459,16 +471,16 @@ export default function GameScreen() {
         title="Game menu"
         footer={<button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={() => setMenuOpen(false)}>Close</button>}
       >
-        <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); nav(`/game/${game.id}/scoreboard`); }}>
+        <button className="tap-btn tap-btn-neutral tap-btn-lg w-full" onClick={() => { setMenuOpen(false); nav(`/game/${game.id}/scoreboard`); }}>
           Scoreboard mode
         </button>
-        <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setLegendOpen(true); }}>
-          Show legend
+        <button className="tap-btn tap-btn-neutral tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setLegendOpen(true); }}>
+          Legend
         </button>
-        <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setPitcherOpen(true); }}>
+        <button className="tap-btn tap-btn-neutral tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setPitcherOpen(true); }}>
           Change pitcher
         </button>
-        <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setDefenseOpen(true); }}>
+        <button className="tap-btn tap-btn-neutral tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setDefenseOpen(true); }}>
           Defense rotation
         </button>
         <button
@@ -497,7 +509,7 @@ function ResolveAtBatModal({
   onResolve: (r: AtBatResult, rbis: number, outs: number) => void;
 }) {
   const [rbis, setRbis] = useState(0);
-  const buttons: Array<{ r: AtBatResult; label: string; tone: 'primary' | 'success' | 'danger' | 'neutral' | 'violet'; outs: number }> = [
+  const buttons: Array<{ r: AtBatResult; label: string; tone: 'neutral' | 'success' | 'danger' | 'violet'; outs: number }> = [
     { r: 'single', label: '1B', tone: 'success', outs: 0 },
     { r: 'double', label: '2B', tone: 'success', outs: 0 },
     { r: 'triple', label: '3B', tone: 'success', outs: 0 },
@@ -514,7 +526,7 @@ function ResolveAtBatModal({
   return (
     <Modal open={open} onClose={onClose} title="Result of at-bat">
       <div className="flex items-center gap-3 mb-2 text-sm">
-        <span className="field-label">RBIs</span>
+        <span className="label">RBIs</span>
         <Stepper value={rbis} onChange={setRbis} />
         <span className="text-[11px] text-phil-maroon/70">runs auto from bases</span>
       </div>
@@ -522,7 +534,7 @@ function ResolveAtBatModal({
         {buttons.map((b) => (
           <button
             key={b.r}
-            className={`tap-btn tap-btn-${b.tone} tap-btn-lg`}
+            className={`tap-btn tap-btn-${b.tone} tap-btn-md`}
             onClick={() => onResolve(b.r, rbis, b.outs)}
           >
             {b.label}
@@ -536,9 +548,9 @@ function ResolveAtBatModal({
 function Stepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <div className="inline-flex items-center gap-2">
-      <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
+      <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={() => onChange(Math.max(0, value - 1))}>−</button>
       <span className="w-6 text-center font-bold text-lg">{value}</span>
-      <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => onChange(value + 1)}>+</button>
+      <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={() => onChange(value + 1)}>+</button>
     </div>
   );
 }
@@ -597,7 +609,7 @@ function DefenseModal({
         <>
           <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={onClose}>Cancel</button>
           <button
-            className="tap-btn tap-btn-primary tap-btn-sm"
+            className="tap-btn tap-btn-maroon tap-btn-sm"
             onClick={() => onSave(rec.map(({ playerId, position }) => ({ playerId, position })))}
           >
             Apply
@@ -613,7 +625,7 @@ function DefenseModal({
             const current = rec.find((r) => r.position === pos);
             return (
               <div key={pos} className="flex items-center gap-2">
-                <div className="w-10 font-mono text-sm text-phil-maroon">{pos}</div>
+                <div className="w-10 font-mono text-sm text-phil-maroon/70">{pos}</div>
                 <select
                   className="input"
                   value={current?.playerId ?? ''}
@@ -659,7 +671,7 @@ function AbsentModal({
       footer={
         <>
           <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={onClose}>Cancel</button>
-          <button className="tap-btn tap-btn-primary tap-btn-sm" onClick={() => onSave(Array.from(absent))}>Save</button>
+          <button className="tap-btn tap-btn-maroon tap-btn-sm" onClick={() => onSave(Array.from(absent))}>Save</button>
         </>
       }
     >
@@ -671,7 +683,7 @@ function AbsentModal({
             <li key={p.id}>
               <button
                 className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'border-phil-blueDeep bg-white text-phil-maroonDark'
+                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'glass text-phil-maroonDark'
                 }`}
                 onClick={() =>
                   setAbsent((prev) => {
@@ -683,7 +695,7 @@ function AbsentModal({
                 }
               >
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-phil-blueLight border border-phil-maroon/40 text-sm font-bold">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/80 border border-white/80 text-sm font-bold">
                     {p.jerseyNumber || `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase()}
                   </span>
                   <span className="text-sm font-medium truncate">{p.displayName}</span>

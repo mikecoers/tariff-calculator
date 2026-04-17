@@ -10,101 +10,102 @@ interface DiamondProps {
   onBaseTap?: (base: 'first' | 'second' | 'third') => void;
 }
 
+function initials(name?: string | null): string {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/);
+  const a = parts[0]?.[0] ?? '';
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (a + b).toUpperCase();
+}
+
 export default function Diamond({
   batterName,
   firstName,
   secondName,
   thirdName,
-  outs,
-  balls,
-  strikes,
   compact = false,
   onBaseTap
 }: DiamondProps) {
   return (
     <div className={`relative mx-auto ${compact ? 'max-w-[240px]' : 'max-w-[320px]'} w-full max-h-full aspect-square select-none`}>
+      {/* Outfield (soft grass gradient) */}
       <div
-        className="absolute inset-0 rounded-full bg-field-stripes border border-field-700/60"
-        style={{ background: 'radial-gradient(circle at 50% 100%, #166534 0%, #0f4020 60%, #072414 100%)' }}
+        className="absolute inset-0 rounded-full border border-white/40"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 100%, #2f855a 0%, #1e6b43 55%, #0f4020 100%)',
+          boxShadow:
+            'inset 0 2px 6px rgba(255,255,255,0.12), 0 12px 40px -18px rgba(0,0,0,0.45)'
+        }}
       />
+      {/* Infield (warmer dirt) */}
       <div
-        className="absolute inset-[14%] rotate-45 rounded-md border-2 border-white/20"
-        style={{ background: 'linear-gradient(160deg, #c2854a, #92400e 80%)' }}
+        className="absolute inset-[14%] rotate-45 rounded-md"
+        style={{
+          background: 'linear-gradient(155deg, #d29560 0%, #a15e2a 100%)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)'
+        }}
       />
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-dirt-200/50 border border-white/20" />
+      {/* Mound */}
+      <div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-7 w-7 rounded-full"
+        style={{ background: 'radial-gradient(circle, #f3d8b5 0%, #b97d3e 100%)' }}
+      />
 
-      <div className="absolute top-1 inset-x-0 flex justify-center">
-        <div className="rounded-full px-3 py-1 text-xs flex items-center gap-2 bg-phil-maroonDarker/80 backdrop-blur border border-ump-line">
-          <span className="font-mono font-bold text-phil-cream">{balls}-{strikes}</span>
-          <span className="text-phil-creamDim">·</span>
-          <span className="flex gap-1">
-            <Dot active={outs >= 1} />
-            <Dot active={outs >= 2} />
-            <Dot active={outs >= 3} />
-          </span>
-        </div>
-      </div>
-
-      <BaseMarker position="top" label="2B" name={secondName} onTap={onBaseTap ? () => onBaseTap('second') : undefined} />
-      <BaseMarker position="right" label="1B" name={firstName} onTap={onBaseTap ? () => onBaseTap('first') : undefined} />
-      <BaseMarker position="left" label="3B" name={thirdName} onTap={onBaseTap ? () => onBaseTap('third') : undefined} />
-      <BaseMarker position="bottom" label="HOME" name={batterName} home />
+      <BaseMarker position="top" name={secondName} onTap={onBaseTap ? () => onBaseTap('second') : undefined} />
+      <BaseMarker position="right" name={firstName} onTap={onBaseTap ? () => onBaseTap('first') : undefined} />
+      <BaseMarker position="left" name={thirdName} onTap={onBaseTap ? () => onBaseTap('third') : undefined} />
+      <BaseMarker position="bottom" name={batterName} home />
     </div>
-  );
-}
-
-function Dot({ active }: { active: boolean }) {
-  return (
-    <span className={`inline-block h-2.5 w-2.5 rounded-full ${active ? 'bg-ump-crit shadow-glowCrit' : 'bg-ump-line'}`} />
   );
 }
 
 function BaseMarker({
   position,
-  label,
   name,
   home = false,
   onTap
 }: {
   position: 'top' | 'right' | 'bottom' | 'left';
-  label: string;
   name?: string | null;
   home?: boolean;
   onTap?: () => void;
 }) {
   const occupied = !!name;
   const posStyles: Record<typeof position, string> = {
-    top: 'top-[8%] left-1/2 -translate-x-1/2',
-    right: 'right-[8%] top-1/2 -translate-y-1/2',
-    bottom: 'bottom-[8%] left-1/2 -translate-x-1/2',
-    left: 'left-[8%] top-1/2 -translate-y-1/2'
+    top: 'top-[6%] left-1/2 -translate-x-1/2',
+    right: 'right-[6%] top-1/2 -translate-y-1/2',
+    bottom: 'bottom-[6%] left-1/2 -translate-x-1/2',
+    left: 'left-[6%] top-1/2 -translate-y-1/2'
   };
-  const filledBg = home
-    ? 'bg-grad-ok border-white shadow-glowOk'
-    : 'bg-grad-blue border-white shadow-glow';
-  const emptyBg = 'bg-white/90 border-white/60';
   const Wrapper: 'button' | 'div' = onTap && occupied ? 'button' : 'div';
+
+  // Uniform base style — square, subtle gradient, white border
+  const occupiedStyle = home
+    ? 'bg-gradient-to-br from-emerald-400 to-emerald-700 border-white'
+    : 'bg-gradient-to-br from-phil-maroonLight to-phil-maroonDark border-white';
+  const emptyStyle = 'bg-white/90 border-white/70';
   return (
     <Wrapper
       onClick={onTap && occupied ? onTap : undefined}
       className={`absolute ${posStyles[position]} flex flex-col items-center ${onTap && occupied ? 'cursor-pointer active:scale-95 transition' : ''}`}
     >
       <div
-        className={`h-12 w-12 rotate-45 border-2 rounded-sm flex items-center justify-center ${
-          occupied ? filledBg : emptyBg
-        } ${occupied ? 'animate-pop-in' : ''}`}
+        className={`h-11 w-11 rotate-45 rounded-md border-2 flex items-center justify-center
+          ${occupied ? occupiedStyle : emptyStyle}
+          ${occupied ? 'animate-pop-in shadow-lg' : 'shadow'}`}
       >
-        <span className={`-rotate-45 text-[10px] font-black ${occupied ? 'text-ump-bg' : 'text-ump-bg/70'}`}>
-          {label}
-        </span>
+        {occupied && (
+          <span className="-rotate-45 text-[11px] font-black text-white tracking-tight">
+            {initials(name)}
+          </span>
+        )}
       </div>
-      <div
-        className={`mt-1 text-[11px] font-bold max-w-[96px] truncate text-center ${
-          occupied ? 'text-phil-maroonDark' : 'text-phil-maroon/50'
-        }`}
-      >
-        {name ?? '—'}
-      </div>
+      {occupied && (
+        <div className="mt-1 text-[11px] font-semibold max-w-[100px] truncate text-center text-phil-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+          {name}
+        </div>
+      )}
     </Wrapper>
   );
 }

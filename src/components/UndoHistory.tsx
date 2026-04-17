@@ -46,7 +46,7 @@ export default function UndoHistory({ open, gameId, onClose, onUndoTo, onUndoOne
       }
     >
       {events.length === 0 ? (
-        <div className="text-sm text-phil-creamDim">Nothing to undo yet.</div>
+        <div className="text-sm text-phil-maroon/70">Nothing to undo yet.</div>
       ) : (
         <ul className="divide-y divide-ump-line">
           {events.map((e, idx) => (
@@ -54,7 +54,7 @@ export default function UndoHistory({ open, gameId, onClose, onUndoTo, onUndoOne
               <span className="chip-info w-10 justify-center">#{events.length - idx}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">{labelFor(e)}</div>
-                <div className="text-[10px] text-phil-creamDim">
+                <div className="text-[10px] text-phil-maroon/70">
                   Inn {e.inning} {e.halfInning === 'top' ? '▲' : '▼'} · {new Date(e.timestamp).toLocaleTimeString()}
                 </div>
               </div>

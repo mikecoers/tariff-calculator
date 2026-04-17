@@ -100,7 +100,7 @@ function BaseMarker({
       </div>
       <div
         className={`mt-1 text-[11px] font-bold max-w-[96px] truncate text-center ${
-          occupied ? 'text-phil-cream' : 'text-phil-creamDim'
+          occupied ? 'text-phil-maroonDark' : 'text-phil-maroon/50'
         }`}
       >
         {name ?? '—'}

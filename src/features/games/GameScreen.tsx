@@ -10,6 +10,8 @@ import BaseActionMenu, { type BaseKey, type BaseAction } from '@/components/Base
 import PlayingTimeBanner from '@/components/PlayingTimeBanner';
 import UndoHistory from '@/components/UndoHistory';
 import CountDisplay from '@/components/CountDisplay';
+import Lineup from '@/components/Lineup';
+import DefenseChart from '@/components/DefenseChart';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -28,6 +30,7 @@ export default function GameScreen() {
   const [pitcherOpen, setPitcherOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [undoOpen, setUndoOpen] = useState(false);
+  const [lineupOpen, setLineupOpen] = useState(false);
   const [baseMenu, setBaseMenu] = useState<BaseKey | null>(null);
   const promptedForHalf = useRef<string>('');
 
@@ -51,6 +54,7 @@ export default function GameScreen() {
     undoLast,
     undoTo,
     applyDefensiveInning,
+    reorderLineup,
     finalizeGame,
     refresh,
     liveAlerts,
@@ -76,10 +80,25 @@ export default function GameScreen() {
 
   const batterId = lineup?.battingOrder[game?.currentBatterSlot ?? 0];
   const batter = batterId ? playersById.get(batterId) : undefined;
+  const orderLen = lineup?.battingOrder.length ?? 1;
   const onDeckId = lineup && game
-    ? lineup.battingOrder[(game.currentBatterSlot + 1) % Math.max(1, lineup.battingOrder.length)]
+    ? lineup.battingOrder[(game.currentBatterSlot + 1) % Math.max(1, orderLen)]
     : undefined;
   const onDeck = onDeckId ? playersById.get(onDeckId) : undefined;
+  const inHoleId = lineup && game
+    ? lineup.battingOrder[(game.currentBatterSlot + 2) % Math.max(1, orderLen)]
+    : undefined;
+  const inHole = inHoleId ? playersById.get(inHoleId) : undefined;
+
+  // Defensive innings count per player across all innings so far
+  const inningDefCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const d of defense) {
+      if (d.inning > game?.inning!) continue;
+      map.set(d.playerId, (map.get(d.playerId) ?? 0) + 1);
+    }
+    return map;
+  }, [defense, game?.inning]);
 
   const currentPitcher = game?.currentPitcherPlayerId ? playersById.get(game.currentPitcherPlayerId) : undefined;
   const pitcherPitches = useMemo(() => {
@@ -92,7 +111,7 @@ export default function GameScreen() {
   const criticalAlerts = liveAlerts.filter((a) => a.severity === 'critical');
   const warnings = liveAlerts.filter((a) => a.severity === 'warning');
 
-  if (loading || !game || !settings) return <div className="p-4 text-phil-creamDim">Loading…</div>;
+  if (loading || !game || !settings) return <div className="p-4 text-phil-maroon/70">Loading…</div>;
 
   const oppBatting = opponentIsBatting(game);
   const ourBatting = !oppBatting;
@@ -131,16 +150,16 @@ export default function GameScreen() {
 
   return (
     <div className="h-dvh flex flex-col overflow-hidden safe-top">
-      <header className="shrink-0 px-3 pt-2 pb-2 border-b border-ump-line bg-phil-maroonDark/60 backdrop-blur">
+      <header className="shrink-0 px-3 pt-2 pb-2 border-b border-phil-blueDeep bg-white/70 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => nav('/home')} aria-label="Exit">
             ✕
           </button>
           <div className="flex-1 text-center">
-            <div className="text-[9px] uppercase tracking-widest text-phil-creamDim">
+            <div className="text-[9px] uppercase tracking-widest text-phil-maroon/70">
               {settings.seasonPhase.toUpperCase()} · vs {game.opponent}
             </div>
-            <div className="font-display text-2xl leading-none tracking-wider text-phil-cream">
+            <div className="font-display text-2xl leading-none tracking-wider text-phil-maroonDark">
               {game.halfInning === 'top' ? '▲' : '▼'} INN {game.inning}
             </div>
           </div>
@@ -155,12 +174,12 @@ export default function GameScreen() {
 
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div className={`score-tile ${oppBatting ? 'score-tile-active-opp' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-phil-creamDim truncate">{game.opponent}</div>
-            <div className="font-mono text-2xl font-black text-phil-cream">{oppScore}</div>
+            <div className="text-[10px] uppercase font-bold text-ump-warn truncate">{game.opponent}</div>
+            <div className="font-mono text-2xl font-black text-phil-maroonDark">{oppScore}</div>
           </div>
           <div className={`score-tile ${ourBatting ? 'score-tile-active-us' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-phil-blue truncate">Phillies</div>
-            <div className="font-mono text-2xl font-black text-phil-cream">{usScore}</div>
+            <div className="text-[10px] uppercase font-bold text-phil-maroon truncate">Phillies</div>
+            <div className="font-mono text-2xl font-black text-phil-maroonDark">{usScore}</div>
           </div>
         </div>
 
@@ -181,7 +200,7 @@ export default function GameScreen() {
               <div className="text-[10px] uppercase font-black text-ump-warn tracking-widest">
                 Coach pitch active
               </div>
-              <div className="text-sm font-bold text-phil-cream truncate">
+              <div className="text-sm font-bold text-phil-maroonDark truncate">
                 Every coach pitch = STRIKE · no walks · 3 strikes = out
               </div>
             </div>
@@ -194,25 +213,32 @@ export default function GameScreen() {
         </div>
 
         {ourBatting && batter && (
-          <div className="mt-2 rounded-xl border-2 border-phil-blue/70 bg-phil-blue/15 px-3 py-1.5 flex items-center gap-2 animate-glow">
+          <button
+            onClick={() => { haptic('light'); setLineupOpen(true); }}
+            className="mt-2 w-full text-left rounded-xl border-2 border-phil-maroon bg-white px-3 py-1.5 flex items-center gap-2 animate-glow"
+          >
             <span className="text-xl">🏏</span>
             <div className="flex-1 min-w-0">
-              <div className="text-[9px] uppercase font-black text-phil-blue tracking-widest flex items-center gap-2">
+              <div className="text-[9px] uppercase font-black text-phil-maroon tracking-widest flex items-center gap-2">
                 Batter up · #{game.currentBatterSlot + 1}
                 {coachPitch && <span className="chip-warn">COACH PITCH</span>}
+                <span className="chip-info ml-auto">Tap for lineup</span>
               </div>
-              <div className="text-base font-bold truncate text-phil-cream">
+              <div className="text-base font-bold truncate text-phil-maroonDark">
                 {batter.displayName}
-                {onDeck && <span className="ml-2 text-[10px] text-phil-creamDim font-medium">on deck: {onDeck.displayName}</span>}
+              </div>
+              <div className="text-[10px] text-phil-maroon/70 truncate">
+                {onDeck && <>On deck: <b>{onDeck.displayName}</b></>}
+                {inHole && <span className="ml-2">· In the hole: <b>{inHole.displayName}</b></span>}
               </div>
             </div>
-          </div>
+          </button>
         )}
         {oppBatting && (
-          <div className="mt-2 rounded-xl border border-ump-line bg-phil-maroon px-3 py-1.5 flex items-center justify-between">
+          <div className="mt-2 rounded-xl border border-phil-maroon bg-white px-3 py-1.5 flex items-center justify-between">
             <div className="min-w-0">
-              <div className="text-[9px] uppercase font-black text-phil-creamDim tracking-widest">Opp at bat</div>
-              <div className="text-sm font-bold truncate">#{game.opponentBatterNumber ?? '?'} in their order</div>
+              <div className="text-[9px] uppercase font-black text-phil-maroon tracking-widest">Opp at bat</div>
+              <div className="text-sm font-bold text-phil-maroonDark truncate">#{game.opponentBatterNumber ?? '?'} in their order</div>
             </div>
             <button
               className="tap-btn tap-btn-ghost tap-btn-sm"
@@ -261,7 +287,7 @@ export default function GameScreen() {
         />
 
         {game.lastPlay && (
-          <div className="text-center text-xs text-phil-creamDim truncate">
+          <div className="text-center text-xs text-phil-maroon/70 truncate">
             <span className="opacity-60">Last:</span> {game.lastPlay}
           </div>
         )}
@@ -293,7 +319,7 @@ export default function GameScreen() {
                     >
                       {pitcherStatus.pitchesThrown}/{pitcherStatus.dailyMax}
                     </span>
-                    <span className="text-phil-creamDim">
+                    <span className="text-phil-maroon/70">
                       age {currentPitcher.age} · rest if out: {pitcherStatus.restDaysIfStopNow}d
                     </span>
                   </div>
@@ -319,14 +345,20 @@ export default function GameScreen() {
           </button>
         )}
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
+          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setLineupOpen(true)}>📋 Lineup</button>
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setDefenseOpen(true)}>🧤 Defense</button>
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setAbsentOpen(true)}>👥 Absent</button>
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setUndoOpen(true)}>↶ Undo</button>
         </div>
+
+        {/* Current defense chart — always visible */}
+        <div className="card">
+          <DefenseChart game={game} settings={settings} players={players} defense={defense} compact />
+        </div>
       </main>
 
-      <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom bg-phil-maroonDark/80 backdrop-blur border-t border-ump-line">
+      <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom bg-white/85 backdrop-blur border-t border-phil-blueDeep">
         <div className="grid grid-cols-3 gap-2 mb-2">
           <button
             className="tap-btn tap-btn-neutral tap-btn-lg"
@@ -375,6 +407,18 @@ export default function GameScreen() {
         }}
         players={players.filter((p) => !game.absentPlayerIds.includes(p.id) && p.active)}
         allowDismiss={!!game.currentPitcherPlayerId}
+      />
+
+      <Lineup
+        open={lineupOpen}
+        onClose={() => setLineupOpen(false)}
+        lineup={lineup}
+        playersById={playersById}
+        atBats={g.atBats}
+        defenseThisInning={defense.filter((d) => d.inning === game.inning)}
+        inningDefenseCounts={inningDefCounts}
+        currentBatterSlot={game.currentBatterSlot}
+        onReorder={reorderLineup}
       />
 
       <BaseActionMenu
@@ -479,7 +523,7 @@ function ResolveAtBatModal({
       <div className="flex items-center gap-3 mb-2 text-sm">
         <span className="field-label">RBIs</span>
         <Stepper value={rbis} onChange={setRbis} />
-        <span className="text-[11px] text-phil-creamDim">runs auto from bases</span>
+        <span className="text-[11px] text-phil-maroon/70">runs auto from bases</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {buttons.map((b) => (
@@ -576,7 +620,7 @@ function DefenseModal({
             const current = rec.find((r) => r.position === pos);
             return (
               <div key={pos} className="flex items-center gap-2">
-                <div className="w-10 font-mono text-sm text-phil-creamDim">{pos}</div>
+                <div className="w-10 font-mono text-sm text-phil-maroon">{pos}</div>
                 <select
                   className="input"
                   value={current?.playerId ?? ''}
@@ -626,7 +670,7 @@ function AbsentModal({
         </>
       }
     >
-      <p className="text-xs text-phil-creamDim">Tap a player to toggle absent. Absent players are excluded from lineup and rotation.</p>
+      <p className="text-xs text-phil-maroon/70">Tap a player to toggle absent. Absent players are excluded from lineup and rotation.</p>
       <ul className="grid grid-cols-2 gap-2 mt-2">
         {players.map((p) => {
           const isAbsent = absent.has(p.id);
@@ -634,7 +678,7 @@ function AbsentModal({
             <li key={p.id}>
               <button
                 className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'border-ump-line bg-phil-maroon text-phil-cream'
+                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'border-phil-blueDeep bg-white text-phil-maroonDark'
                 }`}
                 onClick={() =>
                   setAbsent((prev) => {
@@ -646,7 +690,7 @@ function AbsentModal({
                 }
               >
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-phil-maroonDarker border border-ump-line text-sm font-bold">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-phil-blueLight border border-phil-maroon/40 text-sm font-bold">
                     {p.jerseyNumber || `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase()}
                   </span>
                   <span className="text-sm font-medium truncate">{p.displayName}</span>

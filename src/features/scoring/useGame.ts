@@ -461,6 +461,27 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     [bundle, refresh]
   );
 
+  const reorderLineup = useCallback(
+    async (from: number, to: number) => {
+      if (!bundle.game || !bundle.lineup) return;
+      const order = [...bundle.lineup.battingOrder];
+      if (from < 0 || from >= order.length || to < 0 || to >= order.length) return;
+      const [moved] = order.splice(from, 1);
+      order.splice(to, 0, moved);
+      await lineupsRepo.upsert({ ...bundle.lineup, battingOrder: order });
+      // Keep pointer on the same batter if possible
+      if (bundle.game.currentBatterSlot === from) {
+        await gamesRepo.update(bundle.game.id, { currentBatterSlot: to });
+      } else if (from < bundle.game.currentBatterSlot && to >= bundle.game.currentBatterSlot) {
+        await gamesRepo.update(bundle.game.id, { currentBatterSlot: bundle.game.currentBatterSlot - 1 });
+      } else if (from > bundle.game.currentBatterSlot && to <= bundle.game.currentBatterSlot) {
+        await gamesRepo.update(bundle.game.id, { currentBatterSlot: bundle.game.currentBatterSlot + 1 });
+      }
+      refresh();
+    },
+    [bundle.game, bundle.lineup, refresh]
+  );
+
   const applyDefensiveInning = useCallback(
     async (inning: number, assigns: Array<{ playerId: string; position: DefensiveAssignment['position'] }>) => {
       if (!bundle.game) return;
@@ -548,6 +569,7 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     undoLast,
     undoTo,
     applyDefensiveInning,
+    reorderLineup,
     finalizeGame
   };
 }

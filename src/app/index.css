@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -12,8 +12,8 @@ body,
   height: 100%;
   overscroll-behavior-y: contain;
   background:
-    radial-gradient(ellipse at top, #6d1a33 0%, #4a0e24 55%, #2e0917 100%);
-  color: #fff5e8;
+    radial-gradient(ellipse at top, #dbeaf4 0%, #a4c8e1 55%, #7fb3d1 100%);
+  color: #2e0917;
 }
 
 body {
@@ -26,31 +26,34 @@ body {
            transition-all active:translate-y-[2px] active:shadow-none select-none
            disabled:opacity-40 disabled:pointer-events-none;
   }
-  /* Primary = powder-blue (Phillies signature) */
+  /* Primary = maroon (Phillies accent) */
   .tap-btn-primary {
-    @apply tap-btn text-phil-maroonDark shadow-tap shadow-glow;
-    background-image: linear-gradient(180deg, #dbeaf4 0%, #a4c8e1 55%, #7fb3d1 100%);
+    @apply tap-btn text-phil-cream shadow-tap shadow-glowMaroon;
+    background-image: linear-gradient(180deg, #8a2347 0%, #6d1a33 60%, #4a0e24 100%);
   }
   .tap-btn-success {
     @apply tap-btn text-white shadow-tap shadow-glowOk;
-    background-image: linear-gradient(180deg, #6ee7b7 0%, #10b981 60%, #047857 100%);
+    background-image: linear-gradient(180deg, #34d399 0%, #059669 60%, #065f46 100%);
   }
   .tap-btn-danger {
     @apply tap-btn text-white shadow-tap shadow-glowCrit;
-    background-image: linear-gradient(180deg, #fca5a5 0%, #ef4444 60%, #991b1b 100%);
+    background-image: linear-gradient(180deg, #f87171 0%, #b91c1c 60%, #7f1d1d 100%);
   }
-  /* Neutral = maroon */
+  /* Neutral = white w/ maroon text */
   .tap-btn-neutral {
-    @apply tap-btn text-phil-cream border shadow-tap;
-    background-image: linear-gradient(180deg, #8a2347 0%, #6d1a33 70%, #4a0e24 100%);
-    border-color: #8a2347;
+    @apply tap-btn text-phil-maroonDark border border-phil-blueDeep shadow-tap;
+    background-image: linear-gradient(180deg, #ffffff 0%, #f5f9fd 100%);
   }
   .tap-btn-ghost {
-    @apply tap-btn bg-transparent text-phil-cream border border-phil-maroonLight;
+    @apply tap-btn bg-white/70 text-phil-maroonDark border border-phil-blueDeep;
   }
   .tap-btn-violet {
     @apply tap-btn text-white shadow-tap;
-    background-image: linear-gradient(180deg, #f9a8d4 0%, #db2777 55%, #9d174d 100%);
+    background-image: linear-gradient(180deg, #f9a8d4 0%, #be185d 55%, #831843 100%);
+  }
+  .tap-btn-amber {
+    @apply tap-btn text-phil-maroonDark shadow-tap shadow-glow;
+    background-image: linear-gradient(180deg, #fcd34d 0%, #f59e0b 60%, #b45309 100%);
   }
   .tap-btn-lg {
     @apply min-h-[64px] px-4 text-lg;
@@ -63,43 +66,49 @@ body {
   }
 
   .card {
-    @apply rounded-2xl border border-ump-line p-3 text-phil-cream;
-    background-image: linear-gradient(160deg, rgba(255,245,232,0.08), rgba(255,245,232,0.02) 60%), linear-gradient(180deg, #4a0e24 0%, #2e0917 100%);
+    @apply rounded-2xl border border-phil-blueDeep/60 p-3 text-phil-maroonDark bg-white shadow-card;
+  }
+  .card-maroon {
+    @apply rounded-2xl border p-3 text-phil-cream;
+    background-image: linear-gradient(160deg, #8a2347 0%, #6d1a33 60%, #4a0e24 100%);
+    border-color: rgba(255,245,232,0.2);
   }
   .card-bright {
-    @apply rounded-2xl border p-3 text-phil-cream;
-    background-image: linear-gradient(160deg, rgba(164,200,225,0.25), rgba(164,200,225,0.05));
-    border-color: rgba(164,200,225,0.4);
+    @apply rounded-2xl border p-3 text-phil-maroonDark;
+    background-image: linear-gradient(160deg, #ffffff 0%, #dbeaf4 100%);
+    border-color: rgba(109,26,51,0.3);
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-ump-line bg-phil-maroon px-2 py-0.5 text-[11px] font-bold text-phil-creamDim;
+    @apply inline-flex items-center gap-1 rounded-full border border-phil-blueDeep/50 bg-white px-2 py-0.5 text-[11px] font-bold text-phil-maroon;
   }
   .chip-ok { @apply chip border-ump-ok/60 text-ump-ok bg-ump-ok/10; }
   .chip-warn { @apply chip border-ump-warn/60 text-ump-warn bg-ump-warn/10; }
-  .chip-crit { @apply chip border-ump-crit/70 text-ump-crit bg-ump-crit/15; }
-  .chip-info { @apply chip border-phil-blue/60 text-phil-blue bg-phil-blue/10; }
+  .chip-crit { @apply chip border-ump-crit/70 text-ump-crit bg-ump-crit/10; }
+  .chip-info { @apply chip border-phil-maroon/50 text-phil-maroon bg-phil-maroon/5; }
+  .chip-maroon {
+    @apply chip border-phil-maroon/70 bg-phil-maroon text-phil-cream;
+  }
 
   .field-label {
-    @apply text-[10px] uppercase tracking-widest text-phil-creamDim font-bold;
+    @apply text-[10px] uppercase tracking-widest text-phil-maroon/80 font-bold;
   }
 
   .input {
-    @apply w-full rounded-xl bg-phil-maroonDarker border border-ump-line px-3 py-3 text-phil-cream
-           focus:outline-none focus:border-phil-blue placeholder:text-phil-creamDim/60;
+    @apply w-full rounded-xl bg-white border border-phil-blueDeep px-3 py-3 text-phil-maroonDark
+           focus:outline-none focus:border-phil-maroon placeholder:text-phil-maroon/50;
   }
 
   .score-tile {
-    @apply rounded-xl py-2 px-3 text-center transition border border-ump-line;
-    background-image: linear-gradient(160deg, rgba(255,245,232,0.05), rgba(255,245,232,0) 70%);
+    @apply rounded-xl py-2 px-3 text-center transition border border-phil-blueDeep/60 bg-white;
   }
   .score-tile-active-us {
-    background-image: linear-gradient(160deg, rgba(164,200,225,0.3), rgba(127,179,209,0.05));
-    box-shadow: inset 0 0 0 1px rgba(164,200,225,0.6), 0 0 28px -10px rgba(164,200,225,0.7);
+    background-image: linear-gradient(160deg, #ffffff 0%, #fde7c2 100%);
+    box-shadow: inset 0 0 0 2px #6d1a33, 0 0 28px -10px rgba(109,26,51,0.6);
   }
   .score-tile-active-opp {
-    background-image: linear-gradient(160deg, rgba(251,191,36,0.2), rgba(217,119,6,0.05));
-    box-shadow: inset 0 0 0 1px rgba(251,191,36,0.5), 0 0 25px -10px rgba(251,191,36,0.55);
+    background-image: linear-gradient(160deg, #fff 0%, #fde7c2 100%);
+    box-shadow: inset 0 0 0 2px #b45309, 0 0 28px -10px rgba(180,83,9,0.55);
   }
 }
 
@@ -111,16 +120,13 @@ body {
 @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
 .animate-pulse-slow { animation: pulse-slow 2.4s ease-in-out infinite; }
 
-@keyframes pop-in {
-  0% { transform: scale(0.9); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
+@keyframes pop-in { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 .animate-pop-in { animation: pop-in 180ms ease-out; }
 
-@keyframes glow-blue {
-  0%, 100% { box-shadow: 0 0 14px rgba(164,200,225,0.55); }
-  50%      { box-shadow: 0 0 30px rgba(164,200,225,0.85); }
+@keyframes glow-maroon {
+  0%, 100% { box-shadow: 0 0 14px rgba(109,26,51,0.45); }
+  50%      { box-shadow: 0 0 28px rgba(109,26,51,0.75); }
 }
-.animate-glow { animation: glow-blue 2s ease-in-out infinite; }
+.animate-glow { animation: glow-maroon 2s ease-in-out infinite; }
 
-::selection { background: #a4c8e1; color: #2e0917; }
+::selection { background: #6d1a33; color: #fff5e8; }

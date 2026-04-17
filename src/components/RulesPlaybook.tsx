@@ -83,12 +83,43 @@ export default function RulesPlaybook({ open, onClose }: Props) {
           <Rule>Rest days after an outing: 0d ≤20 · 1d 21–35 · 2d 36–50 · 3d 51–65 · <b>4d 66+</b>.</Rule>
           <Rule>A catcher who caught the same inning <b>cannot</b> pitch that inning.</Rule>
         </Rules>
-        <SmartPlay title="Hit the rest-day sweet spots">
-          Pulling a pitcher at exactly <b>20</b> pitches means 0 rest days —
-          they're available tomorrow. <b>35</b> = just 1 rest day. One pitch
-          past those thresholds costs an extra full day. Plan substitutions
-          around the cliffs.
+
+        <div className="rounded-xl border-2 border-emerald-600 bg-emerald-50 p-2.5">
+          <div className="text-[10px] uppercase tracking-widest font-black text-emerald-800 mb-1">
+            🟢 The No-Rest Zone · ≤ 20 pitches
+          </div>
+          <div className="text-[13px] text-emerald-950 leading-snug font-medium">
+            Pull at <b>20 or fewer</b> and your pitcher is available again
+            tomorrow — huge in a weekend tournament. Watch the in-game meter
+            at the bottom of the pitcher row: when it flips off green, you've
+            just bought a rest day.
+          </div>
+        </div>
+
+        <div className="rounded-xl border-2 border-sky-700 bg-sky-50 p-2.5">
+          <div className="text-[10px] uppercase tracking-widest font-black text-sky-800 mb-1">
+            🔵 The 1-Day Zone · 21–35 pitches
+          </div>
+          <div className="text-[13px] text-sky-950 leading-snug font-medium">
+            Still a sweet spot. Most starters live here on a normal game day.
+            If you're near 35 and the inning just started, consider pulling
+            mid-inning — one pitch over <b>35</b> costs you a second rest
+            day.
+          </div>
+        </div>
+
+        <SmartPlay title="Use the rest cliffs to plan your rotation">
+          Three kids at ≤20 pitches each = three arms ready tomorrow. Better
+          than one kid at 60 needing three days off. Spread the load.
         </SmartPlay>
+
+        <SmartPlay title="Pull mid-inning, not at the end">
+          If your pitcher is at 18 and the inning is fresh, bring someone in
+          now. If they're at 18 with 2 outs, let them finish. Use the
+          in-game alert — it tells you which rest tier you're in and how
+          many pitches before the next cliff.
+        </SmartPlay>
+
         <SmartPlay title="Give every pitcher real reps">
           Rotate several kids through the mound across the season. Today's
           reliever is next month's ace — and appearances on the mound build

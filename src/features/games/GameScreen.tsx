@@ -13,6 +13,8 @@ import CountDisplay from '@/components/CountDisplay';
 import Lineup from '@/components/Lineup';
 import RulesPlaybook from '@/components/RulesPlaybook';
 import GameSidePanel from '@/components/GameSidePanel';
+import PitchRestAlert from '@/components/PitchRestAlert';
+import PhilliesLogo from '@/components/PhilliesLogo';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup, autoFillOpenPositions } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -36,6 +38,7 @@ export default function GameScreen() {
   const [baseMenu, setBaseMenu] = useState<BaseKey | null>(null);
   const [flash, setFlash] = useState(0);
   const promptedForHalf = useRef<string>('');
+  const autoRotatedInnings = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     loadHapticsPref();
@@ -80,6 +83,35 @@ export default function GameScreen() {
       promptedForHalf.current = key;
     }
   }, [game?.inning, game?.halfInning, game?.currentPitcherPlayerId, game]);
+
+  // Auto-rotate the 8 non-pitcher positions whenever the opponent starts
+  // batting and we don't already have a defense set for this inning.
+  useEffect(() => {
+    if (!game || !settings) return;
+    if (!opponentIsBatting(game)) return;
+    if (!game.currentPitcherPlayerId) return; // wait until pitcher is picked
+    if (autoRotatedInnings.current.has(game.inning)) return;
+    const existing = defense.filter((d) => d.inning === game.inning);
+    if (existing.length >= 9) {
+      autoRotatedInnings.current.add(game.inning);
+      return;
+    }
+    const active = players.filter((p) => p.active && !game.absentPlayerIds.includes(p.id));
+    if (active.length < 9) return; // can't field
+    const rec = recommendDefensiveLineup({
+      players: active,
+      game,
+      nextInning: game.inning,
+      settings,
+      priorAssignments: defense,
+      lockedAssignments: [{ playerId: game.currentPitcherPlayerId, position: 'P' }]
+    });
+    autoRotatedInnings.current.add(game.inning);
+    void applyDefensiveInning(
+      game.inning,
+      rec.assignments.map(({ playerId, position }) => ({ playerId, position }))
+    );
+  }, [game?.inning, game?.halfInning, game?.currentPitcherPlayerId, settings, defense.length, players.length]);
 
   const batterId = lineup?.battingOrder[game?.currentBatterSlot ?? 0];
   const batter = batterId ? playersById.get(batterId) : undefined;
@@ -166,8 +198,11 @@ export default function GameScreen() {
           >
             ✕
           </button>
-          <div className="text-[12px] uppercase tracking-[0.2em] font-black text-phil-maroonDark">
-            vs {game.opponent}
+          <div className="flex items-center gap-1.5">
+            <PhilliesLogo size={26} />
+            <div className="text-[12px] uppercase tracking-[0.18em] font-black text-phil-maroonDark">
+              vs {game.opponent}
+            </div>
           </div>
           <button
             className="h-8 w-8 rounded-full glass flex items-center justify-center text-phil-maroonDark text-sm"
@@ -220,9 +255,7 @@ export default function GameScreen() {
             onClick={() => { haptic('light'); setLineupOpen(true); }}
             className="mt-2 w-full text-left glass-solid rounded-2xl px-3 py-2 flex items-center gap-2"
           >
-            <div className="h-10 w-10 rounded-full bg-phil-maroon text-phil-cream flex items-center justify-center text-[13px] font-black shrink-0">
-              #{game.currentBatterSlot + 1}
-            </div>
+            <PhilliesLogo size={40} number={game.currentBatterSlot + 1} />
             <div className="flex-1 min-w-0">
               <div className="font-black text-[16px] text-phil-maroonDark truncate leading-tight">
                 {batter.displayName}
@@ -318,46 +351,51 @@ export default function GameScreen() {
         )}
 
         {oppBatting && (
-          <button
-            onClick={() => { haptic('light'); setPitcherOpen(true); }}
-            className="w-full text-left glass-solid rounded-2xl px-3 py-1.5 flex items-center gap-2"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="label">Our pitcher · inn {game.inning}</div>
-              <div className="font-black text-[15px] text-phil-maroonDark truncate leading-tight">
-                {currentPitcher?.displayName ?? 'Tap to select'}
-              </div>
-            </div>
-            {pitcherStatus && currentPitcher ? (
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span
-                  className={
-                    pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
-                      ? 'chip-crit'
-                      : pitcherStatus.tier === 'yellow'
-                      ? 'chip-warn'
-                      : 'chip-ok'
-                  }
-                >
-                  {pitcherStatus.pitchesThrown}/{pitcherStatus.dailyMax}
-                </span>
-                <div className="w-20 h-1.5 rounded-full bg-phil-maroon/20 overflow-hidden">
-                  <div
-                    className={`h-full ${
-                      pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
-                        ? 'bg-red-700'
-                        : pitcherStatus.tier === 'yellow'
-                        ? 'bg-amber-600'
-                        : 'bg-emerald-600'
-                    }`}
-                    style={{ width: `${Math.min(100, (pitcherStatus.pitchesThrown / Math.max(1, pitcherStatus.dailyMax)) * 100)}%` }}
-                  />
+          <div className="space-y-1.5">
+            <button
+              onClick={() => { haptic('light'); setPitcherOpen(true); }}
+              className="w-full text-left glass-solid rounded-2xl px-3 py-1.5 flex items-center gap-2"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="label">Our pitcher · inn {game.inning}</div>
+                <div className="font-black text-[15px] text-phil-maroonDark truncate leading-tight">
+                  {currentPitcher?.displayName ?? 'Tap to select'}
                 </div>
               </div>
-            ) : (
-              <span className="chip-warn">no pitcher</span>
+              {pitcherStatus && currentPitcher ? (
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span
+                    className={
+                      pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
+                        ? 'chip-crit'
+                        : pitcherStatus.tier === 'yellow'
+                        ? 'chip-warn'
+                        : 'chip-ok'
+                    }
+                  >
+                    {pitcherStatus.pitchesThrown}/{pitcherStatus.dailyMax}
+                  </span>
+                  <div className="w-20 h-1.5 rounded-full bg-phil-maroon/20 overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        pitcherStatus.tier === 'over' || pitcherStatus.tier === 'red'
+                          ? 'bg-red-700'
+                          : pitcherStatus.tier === 'yellow'
+                          ? 'bg-amber-600'
+                          : 'bg-emerald-600'
+                      }`}
+                      style={{ width: `${Math.min(100, (pitcherStatus.pitchesThrown / Math.max(1, pitcherStatus.dailyMax)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <span className="chip-warn">no pitcher</span>
+              )}
+            </button>
+            {currentPitcher && pitcherPitches > 0 && (
+              <PitchRestAlert pitches={pitcherPitches} tiers={settings.pitchCountRestTiers} compact />
             )}
-          </button>
+          </div>
         )}
       </main>
 

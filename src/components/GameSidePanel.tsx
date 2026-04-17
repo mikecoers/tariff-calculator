@@ -1,5 +1,6 @@
 import type { DefensiveAssignment, GameLineup, Player, Position } from '@/types';
 import { DEFENSIVE_POSITIONS } from '@/types';
+import PhilliesLogo from './PhilliesLogo';
 
 interface Props {
   mode: 'bat' | 'defense';
@@ -64,7 +65,7 @@ function BattingSide({
           return (
             <li
               key={pid}
-              className={`flex items-center gap-1 rounded-md px-1.5 py-1 ${
+              className={`flex items-center gap-1.5 rounded-md px-1 py-0.5 ${
                 isBatter
                   ? 'bg-phil-maroon text-phil-cream shadow'
                   : isOnDeck
@@ -72,13 +73,7 @@ function BattingSide({
                   : 'text-phil-maroonDark'
               }`}
             >
-              <span
-                className={`w-5 text-center text-[10px] font-black ${
-                  isBatter ? 'text-phil-cream' : 'text-phil-maroon'
-                }`}
-              >
-                {idx + 1}
-              </span>
+              <PhilliesLogo size={20} number={idx + 1} withOutline={false} />
               <span className="text-[11px] font-bold truncate flex-1">{p.displayName}</span>
               {isBatter && <span className="text-[9px]">⚾</span>}
               {isInHole && <span className="text-[8px] opacity-60">⋯</span>}

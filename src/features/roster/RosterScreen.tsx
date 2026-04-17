@@ -8,6 +8,7 @@ import EmptyState from '@/components/EmptyState';
 import { parseRosterCsv, rosterToCsv } from './csv';
 import { seedPhilliesRoster, WIPE_AND_RESEED } from './seed';
 import RosterImport from '@/components/RosterImport';
+import PhilliesLogo from '@/components/PhilliesLogo';
 import { DEFENSIVE_POSITIONS, type Player, type Position } from '@/types';
 
 const emptyPlayer = (teamId: string): Omit<Player, 'id' | 'createdAt' | 'updatedAt'> => ({
@@ -143,9 +144,7 @@ export default function RosterScreen() {
               <li key={p.id}>
                 <button className="card w-full text-left" onClick={() => setEditing(p)}>
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-ump-bg text-ump-accent font-bold text-xl flex items-center justify-center border border-ump-line">
-                      {p.jerseyNumber || '#'}
-                    </div>
+                    <PhilliesLogo size={52} number={p.jerseyNumber || undefined} />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{p.displayName || `${p.firstName} ${p.lastName}`}</div>
                       <div className="text-xs text-ump-dim truncate">

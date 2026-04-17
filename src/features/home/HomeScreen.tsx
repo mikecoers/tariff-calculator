@@ -5,6 +5,7 @@ import { gamesRepo, playersRepo } from '@/db/repositories';
 import type { Game, Player } from '@/types';
 import EmptyState from '@/components/EmptyState';
 import PrimaryButton from '@/components/PrimaryButton';
+import PhilliesLogo from '@/components/PhilliesLogo';
 import { describePhase } from '@/features/rules/seasonPhaseRules';
 import { seedPhilliesRoster } from '@/features/roster/seed';
 
@@ -28,7 +29,15 @@ export default function HomeScreen() {
   if (!team) {
     return (
       <div className="p-4 max-w-md mx-auto space-y-4">
-        <h1 className="text-3xl font-bold mt-6">Kid Pitch Coach</h1>
+        <div className="flex items-center gap-4 mt-6">
+          <PhilliesLogo size={96} />
+          <div>
+            <h1 className="font-display text-4xl leading-none tracking-wider text-phil-maroonDark">
+              Coach's App
+            </h1>
+            <p className="text-xs font-bold text-phil-maroon mt-1">Built for the Phillies</p>
+          </div>
+        </div>
         <p className="text-ump-dim">Set up your team to get started. Works offline — all data stays on this device.</p>
         <label className="block">
           <span className="field-label">Team name</span>
@@ -66,14 +75,18 @@ export default function HomeScreen() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24">
-      <header className="flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{team.name}</h1>
-          <p className="text-xs text-ump-dim">Season {team.seasonYear}</p>
+      <header className="glass-solid rounded-3xl px-4 py-4 flex items-center gap-4">
+        <PhilliesLogo size={72} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.22em] font-black text-phil-maroon">
+            Coach's app
+          </div>
+          <h1 className="font-display text-3xl leading-none tracking-wider text-phil-maroonDark mt-0.5">
+            {team.name}
+          </h1>
+          <p className="text-[11px] text-phil-maroon font-bold mt-0.5">Season {team.seasonYear}</p>
         </div>
-        {phase && (
-          <span className="chip-info">{phase.label}</span>
-        )}
+        {phase && <span className="chip-info whitespace-nowrap">{phase.label}</span>}
       </header>
 
       {inProgress ? (

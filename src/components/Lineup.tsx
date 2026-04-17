@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import Modal from './Modal';
+import PhilliesLogo from './PhilliesLogo';
 import type { AtBat, DefensiveAssignment, GameLineup, Player, Position } from '@/types';
 import { haptic } from '@/lib/haptics';
 
@@ -85,17 +86,7 @@ export default function Lineup({
                 isBatter ? 'bg-phil-maroon/10 border-l-4 border-phil-maroon pl-2 -ml-2 rounded-r-lg' : ''
               }`}
             >
-              <div
-                className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-sm font-black border ${
-                  isBatter
-                    ? 'bg-phil-maroon text-phil-cream border-phil-maroon'
-                    : isOnDeck
-                    ? 'bg-phil-blueLight text-phil-maroon border-phil-maroon/60'
-                    : 'bg-white text-phil-maroon border-phil-blueDeep'
-                }`}
-              >
-                {idx + 1}
-              </div>
+              <PhilliesLogo size={38} number={idx + 1} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <div className="font-bold truncate">{p.displayName}</div>

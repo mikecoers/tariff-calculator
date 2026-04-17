@@ -26,83 +26,119 @@ export default function Diamond({
   compact = false,
   onBaseTap
 }: DiamondProps) {
+  // viewBox is 320x320. Home plate bottom-center, 2B top-center.
   return (
-    <div className={`relative mx-auto ${compact ? 'max-w-[240px]' : 'max-w-[320px]'} w-full max-h-full aspect-square select-none`}>
-      {/* Outfield (soft grass gradient) */}
-      <div
-        className="absolute inset-0 rounded-full border border-white/40"
-        style={{
-          background:
-            'radial-gradient(circle at 50% 100%, #2f855a 0%, #1e6b43 55%, #0f4020 100%)',
-          boxShadow:
-            'inset 0 2px 6px rgba(255,255,255,0.12), 0 12px 40px -18px rgba(0,0,0,0.45)'
-        }}
-      />
-      {/* Infield (warmer dirt) */}
-      <div
-        className="absolute inset-[14%] rotate-45 rounded-md"
-        style={{
-          background: 'linear-gradient(155deg, #d29560 0%, #a15e2a 100%)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)'
-        }}
-      />
-      {/* Mound */}
-      <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-7 w-7 rounded-full"
-        style={{ background: 'radial-gradient(circle, #f3d8b5 0%, #b97d3e 100%)' }}
-      />
+    <div className={`relative mx-auto ${compact ? 'max-w-[220px]' : 'max-w-[300px]'} w-full max-h-full aspect-square select-none`}>
+      <svg viewBox="0 0 320 320" className="absolute inset-0 w-full h-full drop-shadow-md">
+        <defs>
+          <radialGradient id="grass" cx="50%" cy="100%" r="100%">
+            <stop offset="0%" stopColor="#4ade80" />
+            <stop offset="55%" stopColor="#15803d" />
+            <stop offset="100%" stopColor="#0b3a1f" />
+          </radialGradient>
+          <linearGradient id="dirt" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#e0a972" />
+            <stop offset="100%" stopColor="#a15e2a" />
+          </linearGradient>
+          <pattern id="grassStripes" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(20)">
+            <rect width="16" height="16" fill="url(#grass)" />
+            <rect width="8" height="16" fill="rgba(0,0,0,0.06)" />
+          </pattern>
+        </defs>
 
-      <BaseMarker position="top" name={secondName} onTap={onBaseTap ? () => onBaseTap('second') : undefined} />
-      <BaseMarker position="right" name={firstName} onTap={onBaseTap ? () => onBaseTap('first') : undefined} />
-      <BaseMarker position="left" name={thirdName} onTap={onBaseTap ? () => onBaseTap('third') : undefined} />
-      <BaseMarker position="bottom" name={batterName} home />
+        {/* Outfield (fan shape from home plate) */}
+        <path
+          d="M 160 300 L 316 170 A 160 160 0 0 0 4 170 Z"
+          fill="url(#grassStripes)"
+          stroke="#ffffff"
+          strokeOpacity="0.25"
+          strokeWidth="1"
+        />
+
+        {/* Foul lines */}
+        <line x1="160" y1="300" x2="315" y2="165" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="2" />
+        <line x1="160" y1="300" x2="5" y2="165" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="2" />
+
+        {/* Infield dirt — full diamond */}
+        <polygon
+          points="160,105 255,200 160,295 65,200"
+          fill="url(#dirt)"
+          stroke="#ffffff"
+          strokeOpacity="0.4"
+          strokeWidth="2"
+        />
+
+        {/* Inner grass */}
+        <polygon
+          points="160,150 215,205 160,260 105,205"
+          fill="url(#grass)"
+        />
+
+        {/* Mound */}
+        <circle cx="160" cy="205" r="14" fill="url(#dirt)" stroke="#ffffff" strokeOpacity="0.4" />
+        <circle cx="160" cy="205" r="4" fill="#ffffff" fillOpacity="0.7" />
+
+        {/* Base paths dust lines */}
+        <path
+          d="M 160 295 L 255 200 M 255 200 L 160 105 M 160 105 L 65 200 M 65 200 L 160 295"
+          stroke="#ffffff"
+          strokeOpacity="0.5"
+          strokeWidth="2"
+          strokeDasharray="4 4"
+        />
+      </svg>
+
+      {/* Bases + runners overlaid with HTML for interactivity */}
+      <BaseMarker x="50%" y="32.8%" name={secondName} onTap={onBaseTap ? () => onBaseTap('second') : undefined} />
+      <BaseMarker x="79.7%" y="62.5%" name={firstName} onTap={onBaseTap ? () => onBaseTap('first') : undefined} />
+      <BaseMarker x="20.3%" y="62.5%" name={thirdName} onTap={onBaseTap ? () => onBaseTap('third') : undefined} />
+      <BaseMarker x="50%" y="92.2%" name={batterName} home />
     </div>
   );
 }
 
 function BaseMarker({
-  position,
+  x,
+  y,
   name,
   home = false,
   onTap
 }: {
-  position: 'top' | 'right' | 'bottom' | 'left';
+  x: string;
+  y: string;
   name?: string | null;
   home?: boolean;
   onTap?: () => void;
 }) {
   const occupied = !!name;
-  const posStyles: Record<typeof position, string> = {
-    top: 'top-[6%] left-1/2 -translate-x-1/2',
-    right: 'right-[6%] top-1/2 -translate-y-1/2',
-    bottom: 'bottom-[6%] left-1/2 -translate-x-1/2',
-    left: 'left-[6%] top-1/2 -translate-y-1/2'
-  };
   const Wrapper: 'button' | 'div' = onTap && occupied ? 'button' : 'div';
 
-  // Uniform base style — square, subtle gradient, white border
-  const occupiedStyle = home
-    ? 'bg-gradient-to-br from-emerald-400 to-emerald-700 border-white'
-    : 'bg-gradient-to-br from-phil-maroonLight to-phil-maroonDark border-white';
-  const emptyStyle = 'bg-white/90 border-white/70';
+  const filledGrad = home
+    ? 'bg-gradient-to-br from-emerald-400 to-emerald-700'
+    : 'bg-gradient-to-br from-phil-maroonLight to-phil-maroonDark';
+  const emptyLook = 'bg-white/95';
+
   return (
     <Wrapper
       onClick={onTap && occupied ? onTap : undefined}
-      className={`absolute ${posStyles[position]} flex flex-col items-center ${onTap && occupied ? 'cursor-pointer active:scale-95 transition' : ''}`}
+      style={{ left: x, top: y }}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-auto ${
+        onTap && occupied ? 'cursor-pointer active:scale-95 transition' : ''
+      }`}
     >
       <div
-        className={`h-11 w-11 rotate-45 rounded-md border-2 flex items-center justify-center
-          ${occupied ? occupiedStyle : emptyStyle}
+        className={`h-9 w-9 rotate-45 rounded-[5px] border-2 border-white flex items-center justify-center
+          ${occupied ? filledGrad : emptyLook}
           ${occupied ? 'animate-pop-in shadow-lg' : 'shadow'}`}
       >
         {occupied && (
-          <span className="-rotate-45 text-[11px] font-black text-white tracking-tight">
+          <span className="-rotate-45 text-[10px] font-black text-white tracking-tight">
             {initials(name)}
           </span>
         )}
       </div>
       {occupied && (
-        <div className="mt-1 text-[11px] font-semibold max-w-[100px] truncate text-center text-phil-cream drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+        <div className="mt-0.5 text-[10px] font-bold max-w-[84px] truncate text-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
           {name}
         </div>
       )}

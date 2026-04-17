@@ -12,6 +12,7 @@ import UndoHistory from '@/components/UndoHistory';
 import CountDisplay from '@/components/CountDisplay';
 import Lineup from '@/components/Lineup';
 import RulesPlaybook from '@/components/RulesPlaybook';
+import GameSidePanel from '@/components/GameSidePanel';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup, autoFillOpenPositions } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -275,8 +276,8 @@ export default function GameScreen() {
 
       {/* MAIN — diamond only --------------------------------------------- */}
       <main className="flex-1 min-h-0 overflow-hidden px-3 flex flex-col gap-1.5">
-        <div className="flex-1 flex items-center justify-center min-h-0">
-          <div className="w-full h-full max-h-[38vh] flex items-center justify-center">
+        <div className="flex-1 min-h-0 flex items-stretch gap-2">
+          <div className="flex-1 flex items-center justify-center min-h-0">
             <Diamond
               batterName={ourBatting ? batter?.displayName : null}
               firstName={firstName}
@@ -293,6 +294,19 @@ export default function GameScreen() {
                   setBaseMenu(base);
                 }
               }}
+            />
+          </div>
+          <div className="w-[42%] max-w-[170px] min-h-0 flex">
+            <GameSidePanel
+              mode={ourBatting ? 'bat' : 'defense'}
+              lineup={lineup}
+              playersById={playersById}
+              defense={defense}
+              currentBatterSlot={game.currentBatterSlot}
+              currentPitcherId={game.currentPitcherPlayerId}
+              absentIds={game.absentPlayerIds}
+              allPlayers={players}
+              currentInning={game.inning}
             />
           </div>
         </div>

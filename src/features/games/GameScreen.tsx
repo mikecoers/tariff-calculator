@@ -383,13 +383,13 @@ export default function GameScreen() {
           </button>
         </div>
 
-        {/* Quick actions — equal weight, icon only */}
+        {/* Quick actions — icon + label, equal weight */}
         <div className="mt-1.5 grid grid-cols-5 gap-1.5">
-          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setLineupOpen(true)} aria-label="Lineup">📋</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setDefenseOpen(true)} aria-label="Defense">🧤</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setAbsentOpen(true)} aria-label="Absent">👥</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => setUndoOpen(true)} aria-label="Undo">↶</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-xs" onClick={() => nav(`/game/${game.id}/scoreboard`)} aria-label="Scoreboard">📺</button>
+          <QuickAction icon="📋" label="Lineup" onClick={() => setLineupOpen(true)} />
+          <QuickAction icon="🧤" label="Defense" onClick={() => setDefenseOpen(true)} />
+          <QuickAction icon="👥" label="Subs" onClick={() => setAbsentOpen(true)} />
+          <QuickAction icon="↶" label="Undo" onClick={() => setUndoOpen(true)} />
+          <QuickAction icon="📺" label="Board" onClick={() => nav(`/game/${game.id}/scoreboard`)} />
         </div>
       </footer>
 
@@ -498,6 +498,29 @@ export default function GameScreen() {
         </button>
       </Modal>
     </div>
+  );
+}
+
+function QuickAction({
+  icon,
+  label,
+  onClick
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="rounded-2xl bg-white/85 border border-phil-maroon/30 text-phil-maroonDark
+                 flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[48px]
+                 transition active:scale-[0.97] active:bg-white"
+      onClick={onClick}
+      aria-label={label}
+    >
+      <span className="text-base leading-none">{icon}</span>
+      <span className="text-[9px] font-black uppercase tracking-wider leading-none">{label}</span>
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'rumble';
 
 const patterns: Record<HapticType, number | number[]> = {
   light: 8,
@@ -6,7 +6,9 @@ const patterns: Record<HapticType, number | number[]> = {
   heavy: 30,
   success: [12, 40, 12],
   warning: [20, 50, 20],
-  error: [40, 30, 40, 30, 40]
+  error: [40, 30, 40, 30, 40],
+  // Longer thunder-like buzz for big moments (HIT! HR!)
+  rumble: [30, 20, 60, 20, 100, 20, 50]
 };
 
 let enabled = true;

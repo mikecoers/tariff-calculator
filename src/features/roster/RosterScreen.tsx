@@ -6,6 +6,8 @@ import PrimaryButton from '@/components/PrimaryButton';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import { parseRosterCsv, rosterToCsv } from './csv';
+import { seedPhilliesRoster, WIPE_AND_RESEED } from './seed';
+import RosterImport from '@/components/RosterImport';
 import { DEFENSIVE_POSITIONS, type Player, type Position } from '@/types';
 
 const emptyPlayer = (teamId: string): Omit<Player, 'id' | 'createdAt' | 'updatedAt'> => ({
@@ -29,6 +31,7 @@ export default function RosterScreen() {
   const [editing, setEditing] = useState<Player | null>(null);
   const [creating, setCreating] = useState<ReturnType<typeof emptyPlayer> | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -96,9 +99,27 @@ export default function RosterScreen() {
         }
       />
       <div className="p-4 space-y-3 pb-24 max-w-2xl mx-auto">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            className="tap-btn tap-btn-maroon tap-btn-md"
+            onClick={() => setPasteOpen(true)}
+          >
+            📋 Paste / Import
+          </button>
+          <button
+            className="tap-btn tap-btn-neutral tap-btn-md"
+            onClick={async () => {
+              if (!confirm('Reset to the default Phillies roster? This replaces all current players.')) return;
+              await seedPhilliesRoster(team.id, WIPE_AND_RESEED);
+              await load();
+            }}
+          >
+            ↺ Reset to Phillies
+          </button>
+        </div>
         <div className="flex gap-2">
           <button className="tap-btn tap-btn-neutral tap-btn-sm flex-1" onClick={() => setImportOpen(true)}>
-            Import CSV
+            CSV import
           </button>
           <button
             className="tap-btn tap-btn-neutral tap-btn-sm flex-1"
@@ -337,6 +358,44 @@ export default function RosterScreen() {
           </div>
         )}
       </Modal>
+
+      <RosterImport
+        open={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        onReplace={async (rows) => {
+          await playersRepo.wipeTeam(team.id);
+          await playersRepo.bulkCreate(
+            rows.map((r) => ({
+              teamId: team.id,
+              firstName: r.firstName,
+              lastName: r.lastName,
+              displayName: r.displayName,
+              jerseyNumber: r.jerseyNumber,
+              preferredPositions: [],
+              secondaryPositions: [],
+              active: true,
+              isCatcher: false
+            }))
+          );
+          await load();
+        }}
+        onAdd={async (rows) => {
+          await playersRepo.bulkCreate(
+            rows.map((r) => ({
+              teamId: team.id,
+              firstName: r.firstName,
+              lastName: r.lastName,
+              displayName: r.displayName,
+              jerseyNumber: r.jerseyNumber,
+              preferredPositions: [],
+              secondaryPositions: [],
+              active: true,
+              isCatcher: false
+            }))
+          );
+          await load();
+        }}
+      />
 
       <Modal
         open={importOpen}

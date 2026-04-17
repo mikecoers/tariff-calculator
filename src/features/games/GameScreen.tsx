@@ -378,10 +378,10 @@ export default function GameScreen() {
             Out
           </button>
           <button
-            className="tap-btn tap-btn-success tap-btn-md"
-            onClick={() => withFlash(() => { haptic('medium'); setResolveOpen(true); })}
+            className="tap-btn tap-btn-success tap-btn-md animate-none"
+            onClick={() => withFlash(() => { haptic('rumble'); setResolveOpen(true); })}
           >
-            In Play
+            Hit
           </button>
         </div>
 

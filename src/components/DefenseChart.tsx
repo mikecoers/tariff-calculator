@@ -49,7 +49,7 @@ export default function DefenseChart({ game, settings, players, defense, compact
                 <div className="text-[9px] font-black opacity-70 tracking-wider">{pos}</div>
                 <div className="font-semibold truncate">{p?.displayName ?? '—'}</div>
                 {p && audit && (
-                  <div className="text-[10px] text-phil-maroon/70 mt-0.5">
+                  <div className="text-[10px] text-phil-maroon mt-0.5">
                     {audit.defensiveInnings} def · {audit.firstHalfInnings} early
                   </div>
                 )}
@@ -63,7 +63,7 @@ export default function DefenseChart({ game, settings, players, defense, compact
         <div>
           <div className="field-label mb-1">Bench · {bench.length}</div>
           {bench.length === 0 ? (
-            <div className="text-xs text-phil-maroon/60">All available players are on the field.</div>
+            <div className="text-xs text-phil-maroon">All available players are on the field.</div>
           ) : (
             <ul className="grid grid-cols-2 gap-1 text-xs">
               {bench.map((p) => {

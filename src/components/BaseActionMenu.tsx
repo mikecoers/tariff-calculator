@@ -16,7 +16,7 @@ export default function BaseActionMenu({ open, base, runnerName, onClose, onChoo
   const baseLabel = base === 'first' ? '1st' : base === 'second' ? '2nd' : base === 'third' ? '3rd' : '';
   return (
     <Modal open={open} onClose={onClose} title={`${runnerName ?? 'Runner'} on ${baseLabel}`}>
-      <p className="text-xs text-phil-maroon/70 mb-2">Pick what happened to the runner.</p>
+      <p className="text-xs text-phil-maroon mb-2">Pick what happened to the runner.</p>
       <div className="grid grid-cols-1 gap-2">
         <button
           className="tap-btn tap-btn-primary tap-btn-lg"

@@ -31,24 +31,49 @@ export default function PlayingTimeBanner({
       .sort((x, y) => x.slack - y.slack)[0];
     if (!atRisk?.p) return null;
     return (
-      <div className="rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-2 bg-phil-blue/10 text-phil-blue border border-phil-blue/30">
-        <span>⏱</span>
-        <span className="truncate">
-          <b>{atRisk.p.displayName}</b> needs {atRisk.a.inningsStillNeeded} more def · {remaining} inn left
-        </span>
-      </div>
+      <Banner
+        tone="info"
+        icon="⏱"
+        name={atRisk.p.displayName}
+        detail={`needs ${atRisk.a.inningsStillNeeded} def · ${remaining} inn left`}
+      />
     );
   }
 
-  const tone =
-    top.severity === 'critical'
-      ? 'bg-ump-crit/15 text-ump-crit border-ump-crit/50'
-      : 'bg-ump-warn/15 text-ump-warn border-ump-warn/50';
+  const tone = top.severity === 'critical' ? 'crit' : 'warn';
   const icon = top.severity === 'critical' ? '⚠' : '!';
+  return <Banner tone={tone} icon={icon} message={top.message} />;
+}
+
+function Banner({
+  tone,
+  icon,
+  name,
+  detail,
+  message
+}: {
+  tone: 'info' | 'warn' | 'crit';
+  icon: string;
+  name?: string;
+  detail?: string;
+  message?: string;
+}) {
+  const toneClass =
+    tone === 'crit'
+      ? 'bg-red-50 border-ump-crit text-ump-crit'
+      : tone === 'warn'
+      ? 'bg-amber-50 border-ump-warn text-amber-900'
+      : 'bg-white border-phil-maroon/40 text-phil-maroonDark';
   return (
-    <div className={`rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-2 border ${tone}`}>
-      <span>{icon}</span>
-      <span className="truncate">{top.message}</span>
+    <div className={`w-full rounded-xl border-2 px-3 py-1.5 flex items-center gap-2 text-[12px] font-bold ${toneClass}`}>
+      <span className="text-sm">{icon}</span>
+      {name ? (
+        <span className="truncate">
+          <b>{name}</b>: <span className="font-semibold">{detail}</span>
+        </span>
+      ) : (
+        <span className="truncate">{message}</span>
+      )}
     </div>
   );
 }

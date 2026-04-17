@@ -65,7 +65,7 @@ export default function Lineup({
       title="Batting Order"
       footer={<button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={onClose}>Close</button>}
     >
-      <p className="text-xs text-phil-maroon/70 mb-2">
+      <p className="text-xs text-phil-maroon mb-2">
         ● = at bat · ◐ = on deck · ◑ = in the hole. Use arrows to reorder.
       </p>
       <ol className="divide-y divide-phil-blueDeep/40">
@@ -104,7 +104,7 @@ export default function Lineup({
                   {isOnDeck && <span className="chip-info">ON DECK</span>}
                   {isInHole && <span className="chip-info opacity-70">IN HOLE</span>}
                 </div>
-                <div className="text-[11px] text-phil-maroon/70 flex gap-2 mt-0.5">
+                <div className="text-[11px] text-phil-maroon flex gap-2 mt-0.5">
                   <span>
                     {stats.ab > 0 ? `${stats.hits}/${stats.ab}` : '—'}
                   </span>
@@ -112,7 +112,7 @@ export default function Lineup({
                   {stats.strikeouts > 0 && <span>{stats.strikeouts}K</span>}
                   {stats.rbis > 0 && <span>{stats.rbis}RBI</span>}
                   {stats.runs > 0 && <span>{stats.runs}R</span>}
-                  <span className="ml-auto text-phil-maroon/60">{defInnings}def</span>
+                  <span className="ml-auto text-phil-maroon">{defInnings}def</span>
                 </div>
               </div>
               {onReorder && (

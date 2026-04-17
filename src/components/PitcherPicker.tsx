@@ -89,11 +89,11 @@ export default function PitcherPicker({
     >
       {step === 'pick' && (
         <>
-          <p className="text-xs text-phil-maroon/70 mb-2">
+          <p className="text-xs text-phil-maroon mb-2">
             Tap a pitcher. Next step sets age, which drives the daily cap (50/75/85).
           </p>
           {!override && players.some((p) => eligibility[p.id]?.eligible === false) && (
-            <label className="flex items-center gap-2 text-[11px] text-phil-maroon/70 mb-2">
+            <label className="flex items-center gap-2 text-[11px] text-phil-maroon mb-2">
               <input
                 type="checkbox"
                 className="h-4 w-4"
@@ -111,7 +111,7 @@ export default function PitcherPicker({
                   <li key={p.id}>
                     <button
                       disabled
-                      className="w-full rounded-xl border border-ump-crit/40 bg-ump-crit/10 text-phil-maroon/70 px-3 py-3 flex items-center justify-between opacity-80"
+                      className="w-full rounded-xl border border-ump-crit/40 bg-ump-crit/10 text-phil-maroon px-3 py-3 flex items-center justify-between opacity-80"
                     >
                       <span className="truncate">{p.displayName}</span>
                       <span className="chip-crit">
@@ -136,7 +136,7 @@ export default function PitcherPicker({
                     <span className="flex items-center gap-1">
                       {elig?.eligible ? <span className="chip-ok">ELIGIBLE</span> : null}
                       {ineligible && override ? <span className="chip-crit">OVERRIDE</span> : null}
-                      <span className={`text-xs ${p.age != null ? 'text-phil-maroon/70' : 'text-ump-warn'}`}>
+                      <span className={`text-xs ${p.age != null ? 'text-phil-maroon' : 'text-ump-warn'}`}>
                         {p.age != null ? `age ${p.age}` : 'needs age'}
                       </span>
                     </span>
@@ -149,7 +149,7 @@ export default function PitcherPicker({
       )}
       {step === 'age' && (
         <div>
-          <p className="text-xs text-phil-maroon/70 mb-2">
+          <p className="text-xs text-phil-maroon mb-2">
             Select age — drives the daily pitch cap.
           </p>
           <div className="grid grid-cols-3 gap-2">
@@ -178,7 +178,7 @@ export default function PitcherPicker({
             <div className="mt-3 rounded-xl bg-phil-blueLight border border-phil-maroon p-3 text-sm text-phil-maroonDark">
               <div className="field-label mb-1">Daily cap</div>
               <div className="text-xl font-bold">{age <= 8 ? 50 : age <= 10 ? 75 : 85} pitches</div>
-              <div className="text-xs text-phil-maroon/70 mt-0.5">
+              <div className="text-xs text-phil-maroon mt-0.5">
                 Rest: 0d ≤20 · 1d 21–35 · 2d 36–50 · 3d 51–65 · 4d 66+
               </div>
             </div>

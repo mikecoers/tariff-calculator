@@ -25,7 +25,7 @@ export default function ScoreboardScreen() {
     };
   }, []);
 
-  if (loading || !game) return <div className="p-4 text-phil-maroon/70">Loading…</div>;
+  if (loading || !game) return <div className="p-4 text-phil-maroon">Loading…</div>;
 
   const usHome = game.homeAway === 'home';
   const usScore = usHome ? game.homeScore : game.awayScore;
@@ -40,7 +40,7 @@ export default function ScoreboardScreen() {
 
   return (
     <div className="h-dvh w-full flex flex-col safe-top safe-bottom overflow-hidden">
-      <div className="px-4 py-2 flex items-center justify-between text-xs text-phil-maroon/70">
+      <div className="px-4 py-2 flex items-center justify-between text-xs text-phil-maroon">
         <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => nav(`/game/${game.id}`)}>
           ← Back to game
         </button>
@@ -55,7 +55,7 @@ export default function ScoreboardScreen() {
         </div>
 
         <div className="mt-6 text-center">
-          <div className="text-phil-maroon/70 uppercase tracking-widest text-xs">Inning</div>
+          <div className="text-phil-maroon uppercase tracking-widest text-xs">Inning</div>
           <div className="font-display text-[120px] leading-none tracking-widest text-phil-maroonDark">
             {game.halfInning === 'top' ? '▲' : '▼'}
             {game.inning}
@@ -68,7 +68,7 @@ export default function ScoreboardScreen() {
           <Cell label="Outs" value={game.outs} />
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-phil-maroon/70">
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-phil-maroon">
           Runners: {runners.filter(Boolean).length
             ? runners
                 .map((n, i) => (n ? `${['1B','2B','3B'][i]}: ${n}` : null))
@@ -104,13 +104,13 @@ function ScoreCell({
     >
       <div
         className={`uppercase tracking-widest text-sm ${
-          active ? (tone === 'ok' ? 'text-ump-ok' : 'text-ump-warn') : 'text-phil-maroon/70'
+          active ? (tone === 'ok' ? 'text-ump-ok' : 'text-ump-warn') : 'text-phil-maroon'
         } font-bold truncate`}
       >
         {label}
       </div>
       <div className="font-mono text-[96px] leading-none font-black text-phil-maroonDark">{value}</div>
-      {active && <div className="text-[10px] text-phil-maroon/70 mt-1">AT BAT</div>}
+      {active && <div className="text-[10px] text-phil-maroon mt-1">AT BAT</div>}
     </div>
   );
 }
@@ -118,7 +118,7 @@ function ScoreCell({
 function Cell({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-ump-line p-3 text-center">
-      <div className="uppercase text-[10px] tracking-widest text-phil-maroon/70">{label}</div>
+      <div className="uppercase text-[10px] tracking-widest text-phil-maroon">{label}</div>
       <div className="font-mono text-5xl font-black text-phil-maroonDark">{value}</div>
     </div>
   );

@@ -6,10 +6,14 @@ import Modal from '@/components/Modal';
 import Diamond from '@/components/Diamond';
 import Legend from '@/components/Legend';
 import PitcherPicker from '@/components/PitcherPicker';
+import BaseActionMenu, { type BaseKey, type BaseAction } from '@/components/BaseActionMenu';
+import PlayingTimeBanner from '@/components/PlayingTimeBanner';
+import UndoHistory from '@/components/UndoHistory';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
 import { defenseRepo, gamesRepo, playersRepo } from '@/db/repositories';
+import { haptic, loadHapticsPref } from '@/lib/haptics';
 
 export default function GameScreen() {
   const { gameId } = useParams();
@@ -22,7 +26,13 @@ export default function GameScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [pitcherOpen, setPitcherOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [undoOpen, setUndoOpen] = useState(false);
+  const [baseMenu, setBaseMenu] = useState<BaseKey | null>(null);
   const promptedForHalf = useRef<string>('');
+
+  useEffect(() => {
+    loadHapticsPref();
+  }, []);
 
   const {
     game,
@@ -34,7 +44,11 @@ export default function GameScreen() {
     addPitch,
     resolveAtBat,
     setPitcher,
+    advanceRunner,
+    runnerScored,
+    runnerOut,
     undoLast,
+    undoTo,
     applyDefensiveInning,
     finalizeGame,
     refresh,
@@ -46,7 +60,6 @@ export default function GameScreen() {
     if (!loading && !game) nav('/games', { replace: true });
   }, [loading, game, nav]);
 
-  // Auto-prompt pitcher at the start of each opponent-batting half-inning.
   useEffect(() => {
     if (!game) return;
     const key = `${game.inning}-${game.halfInning}`;
@@ -78,7 +91,7 @@ export default function GameScreen() {
   const criticalAlerts = liveAlerts.filter((a) => a.severity === 'critical');
   const warnings = liveAlerts.filter((a) => a.severity === 'warning');
 
-  if (loading || !game || !settings) return <div className="p-4 text-ump-dim">Loading…</div>;
+  if (loading || !game || !settings) return <div className="p-4 text-phil-creamDim">Loading…</div>;
 
   const oppBatting = opponentIsBatting(game);
   const ourBatting = !oppBatting;
@@ -96,23 +109,44 @@ export default function GameScreen() {
     ? Math.min(100, (pitcherStatus.pitchesThrown / Math.max(1, pitcherStatus.dailyMax)) * 100)
     : 0;
 
+  const runnerOnBase = (b: BaseKey) =>
+    b === 'first' ? firstName : b === 'second' ? secondName : thirdName;
+
+  const handleBaseAction = async (action: BaseAction) => {
+    if (!baseMenu) return;
+    const from = baseMenu;
+    setBaseMenu(null);
+    if (action === 'advance') {
+      haptic('light');
+      await advanceRunner(from);
+    } else if (action === 'score') {
+      haptic('success');
+      await runnerScored(from);
+    } else if (action === 'out') {
+      haptic('warning');
+      await runnerOut(from);
+    }
+  };
+
   return (
     <div className="h-dvh flex flex-col overflow-hidden safe-top">
-      {/* Header ---------------------------------------------------------- */}
-      <header className="shrink-0 px-3 pt-2 pb-2 border-b border-ump-line bg-ump-bg/60 backdrop-blur">
+      <header className="shrink-0 px-3 pt-2 pb-2 border-b border-ump-line bg-phil-maroonDark/60 backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => nav('/home')} aria-label="Exit">
             ✕
           </button>
           <div className="flex-1 text-center">
-            <div className="text-[9px] uppercase tracking-widest text-ump-dim">
+            <div className="text-[9px] uppercase tracking-widest text-phil-creamDim">
               {settings.seasonPhase.toUpperCase()} · vs {game.opponent}
             </div>
-            <div className="font-display text-2xl leading-none tracking-wider text-ump-ink">
+            <div className="font-display text-2xl leading-none tracking-wider text-phil-cream">
               {game.halfInning === 'top' ? '▲' : '▼'} INN {game.inning}
             </div>
           </div>
           <div className="flex gap-1">
+            <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => { haptic('light'); nav(`/game/${game.id}/scoreboard`); }} aria-label="Scoreboard">
+              📺
+            </button>
             <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setLegendOpen(true)} aria-label="Legend">?</button>
             <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setMenuOpen(true)} aria-label="Menu">⋯</button>
           </div>
@@ -120,13 +154,18 @@ export default function GameScreen() {
 
         <div className="mt-2 grid grid-cols-2 gap-2">
           <div className={`score-tile ${oppBatting ? 'score-tile-active-opp' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-ump-dim truncate">{game.opponent}</div>
-            <div className="font-mono text-2xl font-black text-ump-ink">{oppScore}</div>
+            <div className="text-[10px] uppercase font-bold text-phil-creamDim truncate">{game.opponent}</div>
+            <div className="font-mono text-2xl font-black text-phil-cream">{oppScore}</div>
           </div>
           <div className={`score-tile ${ourBatting ? 'score-tile-active-us' : ''}`}>
-            <div className="text-[10px] uppercase font-bold text-ump-ok truncate">Us</div>
-            <div className="font-mono text-2xl font-black text-ump-ink">{usScore}</div>
+            <div className="text-[10px] uppercase font-bold text-phil-blue truncate">Phillies</div>
+            <div className="font-mono text-2xl font-black text-phil-cream">{usScore}</div>
           </div>
+        </div>
+
+        {/* Proactive playing-time call-out */}
+        <div className="mt-2">
+          <PlayingTimeBanner players={players} assignments={defense} game={game} settings={settings} />
         </div>
 
         {ourBatting && batter && (
@@ -145,14 +184,15 @@ export default function GameScreen() {
           </div>
         )}
         {oppBatting && (
-          <div className="mt-2 rounded-xl border border-ump-line bg-ump-cardHi px-3 py-1.5 flex items-center justify-between">
+          <div className="mt-2 rounded-xl border border-ump-line bg-phil-maroon px-3 py-1.5 flex items-center justify-between">
             <div className="min-w-0">
-              <div className="text-[9px] uppercase font-black text-ump-dim tracking-widest">Opp at bat</div>
+              <div className="text-[9px] uppercase font-black text-phil-creamDim tracking-widest">Opp at bat</div>
               <div className="text-sm font-bold truncate">#{game.opponentBatterNumber ?? '?'} in their order</div>
             </div>
             <button
               className="tap-btn tap-btn-ghost tap-btn-sm"
               onClick={async () => {
+                haptic('light');
                 await gamesRepo.update(game.id, {
                   opponentBatterNumber: ((game.opponentBatterNumber ?? 1) % 9) + 1
                 });
@@ -176,7 +216,6 @@ export default function GameScreen() {
         )}
       </header>
 
-      {/* Main: diamond + pitcher, uses remaining space -------------------- */}
       <main className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-2">
         <Diamond
           batterName={ourBatting ? batter?.displayName : `Opp #${game.opponentBatterNumber ?? '?'}`}
@@ -187,18 +226,24 @@ export default function GameScreen() {
           balls={game.balls}
           strikes={game.strikes}
           compact
+          onBaseTap={(base) => {
+            if (!ourBatting) return; // only move our runners
+            if (runnerOnBase(base)) {
+              haptic('light');
+              setBaseMenu(base);
+            }
+          }}
         />
 
         {game.lastPlay && (
-          <div className="text-center text-xs text-ump-dim truncate">
+          <div className="text-center text-xs text-phil-creamDim truncate">
             <span className="opacity-60">Last:</span> {game.lastPlay}
           </div>
         )}
 
-        {/* Pitcher pill when we're pitching */}
         {oppBatting && (
           <button
-            onClick={() => setPitcherOpen(true)}
+            onClick={() => { haptic('light'); setPitcherOpen(true); }}
             className="card w-full text-left"
           >
             <div className="flex items-center justify-between gap-2">
@@ -223,7 +268,7 @@ export default function GameScreen() {
                     >
                       {pitcherStatus.pitchesThrown}/{pitcherStatus.dailyMax}
                     </span>
-                    <span className="text-ump-dim">
+                    <span className="text-phil-creamDim">
                       age {currentPitcher.age} · rest if out: {pitcherStatus.restDaysIfStopNow}d
                     </span>
                   </div>
@@ -249,24 +294,22 @@ export default function GameScreen() {
           </button>
         )}
 
-        {/* Secondary actions */}
         <div className="grid grid-cols-3 gap-2">
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setDefenseOpen(true)}>🧤 Defense</button>
           <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setAbsentOpen(true)}>👥 Absent</button>
-          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={undoLast}>↶ Undo</button>
+          <button className="tap-btn tap-btn-ghost tap-btn-sm" onClick={() => setUndoOpen(true)}>↶ Undo</button>
         </div>
       </main>
 
-      {/* Bottom action bar ---------------------------------------------- */}
-      <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom bg-ump-bg/70 backdrop-blur border-t border-ump-line">
+      <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom bg-phil-maroonDark/80 backdrop-blur border-t border-ump-line">
         <div className="grid grid-cols-3 gap-2 mb-2">
-          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => addPitch('ball')}>BALL</button>
-          <button className="tap-btn tap-btn-primary tap-btn-lg" onClick={() => addPitch('strike')}>STRIKE</button>
-          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => addPitch('foul')}>FOUL</button>
+          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => { haptic('light'); addPitch('ball'); }}>BALL</button>
+          <button className="tap-btn tap-btn-primary tap-btn-lg" onClick={() => { haptic('medium'); addPitch('strike'); }}>STRIKE</button>
+          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => { haptic('light'); addPitch('foul'); }}>FOUL</button>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <button className="tap-btn tap-btn-danger tap-btn-lg" onClick={() => resolveAtBat('groundout', 0, 1)}>OUT</button>
-          <button className="tap-btn tap-btn-success tap-btn-lg" onClick={() => setResolveOpen(true)}>IN PLAY</button>
+          <button className="tap-btn tap-btn-danger tap-btn-lg" onClick={() => { haptic('warning'); resolveAtBat('groundout', 0, 1); }}>OUT</button>
+          <button className="tap-btn tap-btn-success tap-btn-lg" onClick={() => { haptic('medium'); setResolveOpen(true); }}>IN PLAY</button>
         </div>
       </footer>
 
@@ -274,6 +317,7 @@ export default function GameScreen() {
         open={resolveOpen}
         onClose={() => setResolveOpen(false)}
         onResolve={async (r, rbis, outs) => {
+          haptic(outs > 0 ? 'warning' : 'success');
           await resolveAtBat(r, rbis, outs);
           setResolveOpen(false);
         }}
@@ -282,6 +326,7 @@ export default function GameScreen() {
       <PitcherPicker
         open={pitcherOpen}
         title={`Pitcher — inning ${game.inning}`}
+        gameDate={game.date}
         onClose={() => setPitcherOpen(false)}
         onPick={async (pid) => {
           await setPitcher(pid);
@@ -289,6 +334,22 @@ export default function GameScreen() {
         }}
         players={players.filter((p) => !game.absentPlayerIds.includes(p.id) && p.active)}
         allowDismiss={!!game.currentPitcherPlayerId}
+      />
+
+      <BaseActionMenu
+        open={baseMenu != null}
+        base={baseMenu}
+        runnerName={baseMenu ? runnerOnBase(baseMenu) ?? undefined : undefined}
+        onClose={() => setBaseMenu(null)}
+        onChoose={handleBaseAction}
+      />
+
+      <UndoHistory
+        open={undoOpen}
+        gameId={game.id}
+        onClose={() => setUndoOpen(false)}
+        onUndoOne={async () => { haptic('warning'); await undoLast(); }}
+        onUndoTo={async (eventId) => { haptic('warning'); await undoTo(eventId); }}
       />
 
       <DefenseModal
@@ -320,6 +381,9 @@ export default function GameScreen() {
         title="Game menu"
         footer={<button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={() => setMenuOpen(false)}>Close</button>}
       >
+        <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); nav(`/game/${game.id}/scoreboard`); }}>
+          Scoreboard mode
+        </button>
         <button className="tap-btn tap-btn-ghost tap-btn-lg w-full" onClick={() => { setMenuOpen(false); setLegendOpen(true); }}>
           Show legend
         </button>
@@ -374,7 +438,7 @@ function ResolveAtBatModal({
       <div className="flex items-center gap-3 mb-2 text-sm">
         <span className="field-label">RBIs</span>
         <Stepper value={rbis} onChange={setRbis} />
-        <span className="text-[11px] text-ump-dim">runs auto from bases</span>
+        <span className="text-[11px] text-phil-creamDim">runs auto from bases</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {buttons.map((b) => (
@@ -471,7 +535,7 @@ function DefenseModal({
             const current = rec.find((r) => r.position === pos);
             return (
               <div key={pos} className="flex items-center gap-2">
-                <div className="w-10 font-mono text-sm text-ump-dim">{pos}</div>
+                <div className="w-10 font-mono text-sm text-phil-creamDim">{pos}</div>
                 <select
                   className="input"
                   value={current?.playerId ?? ''}
@@ -521,7 +585,7 @@ function AbsentModal({
         </>
       }
     >
-      <p className="text-xs text-ump-dim">Tap a player to toggle absent. Absent players are excluded from lineup and rotation.</p>
+      <p className="text-xs text-phil-creamDim">Tap a player to toggle absent. Absent players are excluded from lineup and rotation.</p>
       <ul className="grid grid-cols-2 gap-2 mt-2">
         {players.map((p) => {
           const isAbsent = absent.has(p.id);
@@ -529,7 +593,7 @@ function AbsentModal({
             <li key={p.id}>
               <button
                 className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'border-ump-line bg-ump-card text-ump-ink'
+                  isAbsent ? 'border-ump-crit/60 bg-ump-crit/10 text-ump-crit line-through' : 'border-ump-line bg-phil-maroon text-phil-cream'
                 }`}
                 onClick={() =>
                   setAbsent((prev) => {
@@ -541,7 +605,7 @@ function AbsentModal({
                 }
               >
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-ump-bg border border-ump-line text-sm font-bold">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-phil-maroonDarker border border-ump-line text-sm font-bold">
                     {p.jerseyNumber || `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase()}
                   </span>
                   <span className="text-sm font-medium truncate">{p.displayName}</span>

@@ -4,6 +4,7 @@ import HomeScreen from '@/features/home/HomeScreen';
 import RosterScreen from '@/features/roster/RosterScreen';
 import NewGameScreen from '@/features/games/NewGameScreen';
 import GameScreen from '@/features/games/GameScreen';
+import ScoreboardScreen from '@/features/games/ScoreboardScreen';
 import GamesScreen from '@/features/games/GamesScreen';
 import PitchersScreen from '@/features/pitching/PitchersScreen';
 import StatsScreen from '@/features/stats/StatsScreen';
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/roster" element={<RosterScreen />} />
           <Route path="/new-game" element={<NewGameScreen />} />
           <Route path="/game/:gameId" element={<GameScreen />} />
+          <Route path="/game/:gameId/scoreboard" element={<ScoreboardScreen />} />
           <Route path="/games" element={<GamesScreen />} />
           <Route path="/pitchers" element={<PitchersScreen />} />
           <Route path="/stats" element={<StatsScreen />} />

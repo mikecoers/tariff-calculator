@@ -44,12 +44,34 @@ export interface GameBundle {
 }
 
 export function opponentIsBatting(game: Game): boolean {
-  // Our team is batting when:
-  //   home team & bottom of inning, OR away team & top of inning
   const ourBatting =
     (game.halfInning === 'bottom' && game.homeAway === 'home') ||
     (game.halfInning === 'top' && game.homeAway === 'away');
   return !ourBatting;
+}
+
+type GameSnapshot = Partial<Game>;
+
+function snapshotOf(game: Game): GameSnapshot {
+  return {
+    outs: game.outs,
+    balls: game.balls,
+    strikes: game.strikes,
+    runsThisInning: game.runsThisInning,
+    homeScore: game.homeScore,
+    awayScore: game.awayScore,
+    currentBatterSlot: game.currentBatterSlot,
+    firstBasePlayerId: game.firstBasePlayerId,
+    secondBasePlayerId: game.secondBasePlayerId,
+    thirdBasePlayerId: game.thirdBasePlayerId,
+    inning: game.inning,
+    halfInning: game.halfInning,
+    currentPitcherPlayerId: game.currentPitcherPlayerId,
+    opponentBatterNumber: game.opponentBatterNumber,
+    lastPlay: game.lastPlay,
+    status: game.status,
+    gameEndedReason: game.gameEndedReason
+  };
 }
 
 export function useGame(gameId: string | undefined, settings: SeasonSettings | null) {
@@ -109,13 +131,13 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     async (result: PitchResult) => {
       const { game } = bundle;
       if (!game || !settings) return;
+      const before = snapshotOf(game);
       let balls = game.balls;
       let strikes = game.strikes;
       if (result === 'ball') balls += 1;
       else if (result === 'strike') strikes += 1;
       else if (result === 'foul') strikes = Math.min(2, strikes + 1);
 
-      // Only attribute pitch events to OUR pitcher when opponent is batting
       if (opponentIsBatting(game) && game.currentPitcherPlayerId) {
         const latest = await atBatsRepo.latest(game.id);
         const ab =
@@ -148,7 +170,7 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
       }
 
       await gamesRepo.update(game.id, { balls, strikes });
-      await recordEvent('at_bat', { pitchResult: result });
+      await recordEvent('at_bat', { pitchResult: result, before });
       refresh();
     },
     [bundle, settings, recordEvent, refresh]
@@ -158,11 +180,11 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     async (result: AtBatResult, rbis = 0, outs = 0) => {
       const { game, lineup } = bundle;
       if (!game) return;
+      const before = snapshotOf(game);
       const ourBatting = !opponentIsBatting(game);
       const batterId = ourBatting ? lineup?.battingOrder[game.currentBatterSlot] ?? '' : '';
       const pitcherId = ourBatting ? undefined : game.currentPitcherPlayerId;
 
-      // Advance runners (only meaningful when our team bats; for opponent, we don't track their runners)
       let bases = {
         first: game.firstBasePlayerId ?? null,
         second: game.secondBasePlayerId ?? null,
@@ -216,7 +238,7 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
 
       await gamesRepo.update(game.id, patch);
       const updated = { ...game, ...patch } as Game;
-      await recordEvent('at_bat', { atBatId: ab.id, result, runs, rbis, outs });
+      await recordEvent('at_bat', { atBatId: ab.id, result, runs, rbis, outs, before });
 
       if (settings && shouldEndHalfInning(updated, settings)) {
         const next = nextHalfInning(updated);
@@ -247,55 +269,152 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
   const setPitcher = useCallback(
     async (playerId: string) => {
       if (!bundle.game) return;
+      const before = snapshotOf(bundle.game);
       await gamesRepo.update(bundle.game.id, { currentPitcherPlayerId: playerId });
-      await recordEvent('pitching_change', { playerId });
+      await recordEvent('pitching_change', { playerId, before });
       refresh();
     },
     [bundle.game, recordEvent, refresh]
   );
 
-  const addOpponentRun = useCallback(async () => {
-    const { game } = bundle;
-    if (!game) return;
-    const ourHome = game.homeAway === 'home';
-    const ourBatting = !opponentIsBatting(game);
-    if (ourBatting) return; // use resolve at bat
-    await gamesRepo.update(game.id, {
-      homeScore: game.homeScore + (!ourHome && game.halfInning === 'bottom' ? 1 : 0),
-      awayScore: game.awayScore + ((!ourHome && game.halfInning === 'top') || (ourHome && game.halfInning === 'top') ? 1 : 0),
-      runsThisInning: game.runsThisInning + 1,
-      lastPlay: 'Run scored (opponent)'
-    });
-    refresh();
-  }, [bundle, refresh]);
+  // Runner actions — tap-a-base semantics
+  const advanceRunner = useCallback(
+    async (from: 'first' | 'second' | 'third') => {
+      const { game } = bundle;
+      if (!game) return;
+      const before = snapshotOf(game);
+      const name = (key: 'first' | 'second' | 'third') =>
+        key === 'first' ? game.firstBasePlayerId : key === 'second' ? game.secondBasePlayerId : game.thirdBasePlayerId;
+      const pid = name(from);
+      if (!pid) return;
+      const patch: Partial<Game> = {};
+      if (from === 'first') {
+        patch.firstBasePlayerId = null;
+        patch.secondBasePlayerId = game.secondBasePlayerId ?? pid;
+        if (game.secondBasePlayerId) {
+          // push chain
+          patch.thirdBasePlayerId = game.thirdBasePlayerId ?? game.secondBasePlayerId;
+          patch.secondBasePlayerId = pid;
+          if (game.thirdBasePlayerId) {
+            // bumped home
+            const adj = scoreRunner(game, game.thirdBasePlayerId);
+            Object.assign(patch, adj);
+            patch.thirdBasePlayerId = game.secondBasePlayerId;
+          }
+        }
+      } else if (from === 'second') {
+        patch.secondBasePlayerId = null;
+        patch.thirdBasePlayerId = game.thirdBasePlayerId ?? pid;
+        if (game.thirdBasePlayerId) {
+          const adj = scoreRunner(game, game.thirdBasePlayerId);
+          Object.assign(patch, adj);
+          patch.thirdBasePlayerId = pid;
+        }
+      } else {
+        // from third → home
+        patch.thirdBasePlayerId = null;
+        const adj = scoreRunner(game, pid);
+        Object.assign(patch, adj);
+      }
+      patch.lastPlay = `${playersById.get(pid)?.displayName ?? 'Runner'} advanced`;
+      await gamesRepo.update(game.id, patch);
+      await recordEvent('at_bat', { type: 'runner_advance', from, playerId: pid, before });
+      refresh();
+    },
+    [bundle, playersById, recordEvent, refresh]
+  );
+
+  const runnerScored = useCallback(
+    async (from: 'first' | 'second' | 'third') => {
+      const { game } = bundle;
+      if (!game) return;
+      const before = snapshotOf(game);
+      const pid =
+        from === 'first' ? game.firstBasePlayerId : from === 'second' ? game.secondBasePlayerId : game.thirdBasePlayerId;
+      if (!pid) return;
+      const adj = scoreRunner(game, pid);
+      const patch: Partial<Game> = { ...adj, lastPlay: `${playersById.get(pid)?.displayName ?? 'Runner'} scored` };
+      if (from === 'first') patch.firstBasePlayerId = null;
+      if (from === 'second') patch.secondBasePlayerId = null;
+      if (from === 'third') patch.thirdBasePlayerId = null;
+      await gamesRepo.update(game.id, patch);
+      await recordEvent('at_bat', { type: 'runner_scored', from, playerId: pid, before });
+      refresh();
+    },
+    [bundle, playersById, recordEvent, refresh]
+  );
+
+  const runnerOut = useCallback(
+    async (from: 'first' | 'second' | 'third') => {
+      const { game } = bundle;
+      if (!game) return;
+      const before = snapshotOf(game);
+      const pid =
+        from === 'first' ? game.firstBasePlayerId : from === 'second' ? game.secondBasePlayerId : game.thirdBasePlayerId;
+      if (!pid) return;
+      const patch: Partial<Game> = {
+        outs: game.outs + 1,
+        lastPlay: `${playersById.get(pid)?.displayName ?? 'Runner'} out on base`
+      };
+      if (from === 'first') patch.firstBasePlayerId = null;
+      if (from === 'second') patch.secondBasePlayerId = null;
+      if (from === 'third') patch.thirdBasePlayerId = null;
+      await gamesRepo.update(game.id, patch);
+      const updated = { ...game, ...patch } as Game;
+      await recordEvent('at_bat', { type: 'runner_out', from, playerId: pid, before });
+      if (settings && shouldEndHalfInning(updated, settings)) {
+        const next = nextHalfInning(updated);
+        await gamesRepo.update(game.id, {
+          inning: next.inning,
+          halfInning: next.halfInning,
+          outs: 0,
+          runsThisInning: 0,
+          firstBasePlayerId: null,
+          secondBasePlayerId: null,
+          thirdBasePlayerId: null
+        });
+        await recordEvent('half_inning_change', { from: game.halfInning, to: next.halfInning, inning: next.inning });
+      }
+      refresh();
+    },
+    [bundle, settings, playersById, recordEvent, refresh]
+  );
 
   const undoLast = useCallback(async () => {
     if (!bundle.game) return;
     const last = await gameEventsRepo.latest(bundle.game.id);
     if (!last) return;
-    if (last.type === 'at_bat') {
-      const latestAb = await atBatsRepo.latest(bundle.game.id);
-      if (latestAb) {
-        const isHomeBatting =
-          latestAb.halfInning === 'bottom'
-            ? bundle.game.homeAway === 'home'
-            : bundle.game.homeAway !== 'home';
-        const patch: Partial<Game> = {
-          homeScore: Math.max(0, bundle.game.homeScore - (isHomeBatting ? latestAb.runsScored : 0)),
-          awayScore: Math.max(0, bundle.game.awayScore - (!isHomeBatting ? latestAb.runsScored : 0)),
-          outs: Math.max(0, bundle.game.outs - latestAb.outsRecorded),
-          runsThisInning: Math.max(0, bundle.game.runsThisInning - latestAb.runsScored),
-          currentBatterSlot:
-            (bundle.game.currentBatterSlot - 1 + (bundle.lineup?.battingOrder.length ?? 1)) %
-            (bundle.lineup?.battingOrder.length ?? 1)
-        };
-        await gamesRepo.update(bundle.game.id, patch);
-        await atBatsRepo.remove(latestAb.id);
-      }
+    const payload = last.payload as { before?: GameSnapshot; atBatId?: string } | undefined;
+    if (payload?.before) {
+      await gamesRepo.update(bundle.game.id, payload.before as Partial<Game>);
+      if (payload.atBatId) await atBatsRepo.remove(payload.atBatId);
     }
     await gameEventsRepo.remove(last.id);
     refresh();
   }, [bundle, refresh]);
+
+  const undoTo = useCallback(
+    async (eventId: string) => {
+      if (!bundle.game) return;
+      const events = await gameEventsRepo.forGame(bundle.game.id);
+      const targetIdx = events.findIndex((e) => e.id === eventId);
+      if (targetIdx < 0) return;
+      const toRemove = events.slice(targetIdx);
+      // Apply the earliest snapshot (the `before` state of the target event) as the restore point
+      const firstBefore = (toRemove[0].payload as { before?: GameSnapshot } | undefined)?.before;
+      if (firstBefore) {
+        await gamesRepo.update(bundle.game.id, firstBefore as Partial<Game>);
+      }
+      // Remove all events and their at-bats
+      for (const ev of toRemove) {
+        const p = ev.payload as { atBatId?: string } | undefined;
+        if (p?.atBatId) await atBatsRepo.remove(p.atBatId);
+        await gameEventsRepo.remove(ev.id);
+      }
+      refresh();
+    },
+    [bundle, refresh]
+  );
 
   const applyDefensiveInning = useCallback(
     async (inning: number, assigns: Array<{ playerId: string; position: DefensiveAssignment['position'] }>) => {
@@ -359,7 +478,6 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     refresh();
   }, [bundle, settings, recordEvent, refresh]);
 
-  // Live alert derivation (memoized for display, not persisted here)
   const liveAlerts = useMemo(() => {
     if (!settings || !bundle.game) return [];
     return computeLiveAlerts({
@@ -379,10 +497,24 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     addPitch,
     resolveAtBat,
     setPitcher,
-    addOpponentRun,
+    advanceRunner,
+    runnerScored,
+    runnerOut,
     undoLast,
+    undoTo,
     applyDefensiveInning,
     finalizeGame
+  };
+}
+
+function scoreRunner(game: Game, _pid: string): Partial<Game> {
+  const isHomeBatting =
+    (game.halfInning === 'bottom' && game.homeAway === 'home') ||
+    (game.halfInning === 'top' && game.homeAway !== 'home');
+  return {
+    homeScore: game.homeScore + (isHomeBatting ? 1 : 0),
+    awayScore: game.awayScore + (!isHomeBatting ? 1 : 0),
+    runsThisInning: game.runsThisInning + 1
   };
 }
 

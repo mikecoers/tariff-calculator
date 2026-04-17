@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .tap-btn {
+    @apply inline-flex items-center justify-center rounded-2xl font-semibold uppercase tracking-wide
+           transition active:translate-y-[2px] active:shadow-none shadow-tap select-none
+           disabled:opacity-40 disabled:pointer-events-none;
+  }
+  .tap-btn-primary {
+    @apply tap-btn bg-ump-accent text-ump-bg;
+  }
+  .tap-btn-success {
+    @apply tap-btn bg-ump-ok text-ump-bg;
+  }
+  .tap-btn-danger {
+    @apply tap-btn bg-ump-crit text-white;
+  }
+  .tap-btn-neutral {
+    @apply tap-btn bg-ump-card text-ump-ink border border-ump-line;
+  }
+  .tap-btn-lg {
+    @apply min-h-[72px] px-5 text-lg;
+  }
+  .tap-btn-xl {
+    @apply min-h-[88px] px-6 text-2xl;
+  }
+  .tap-btn-sm {
+    @apply min-h-[44px] px-3 text-sm;
+  }
+
+  .card {
+    @apply rounded-2xl bg-ump-card border border-ump-line p-4;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-ump-line bg-ump-card px-2 py-1 text-xs font-medium text-ump-dim;
+  }
+  .chip-ok { @apply chip border-ump-ok/40 text-ump-ok bg-ump-ok/10; }
+  .chip-warn { @apply chip border-ump-warn/40 text-ump-warn bg-ump-warn/10; }
+  .chip-crit { @apply chip border-ump-crit/50 text-ump-crit bg-ump-crit/10; }
+  .chip-info { @apply chip border-ump-info/40 text-ump-info bg-ump-info/10; }
+
+  .field-label {
+    @apply text-xs uppercase tracking-wider text-ump-dim font-semibold;
+  }
+
+  .input {
+    @apply w-full rounded-xl bg-ump-bg border border-ump-line px-3 py-3 text-ump-ink
+           focus:outline-none focus:border-ump-accent placeholder:text-ump-dim;
+  }
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+}
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 0.5rem);
+}

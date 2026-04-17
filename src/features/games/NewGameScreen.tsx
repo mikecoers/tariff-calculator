@@ -60,7 +60,8 @@ export default function NewGameScreen() {
       opponentBatterNumber: 1,
       firstBasePlayerId: null,
       secondBasePlayerId: null,
-      thirdBasePlayerId: null
+      thirdBasePlayerId: null,
+      coachPitchActive: false
     });
     await lineupsRepo.upsert({
       gameId: game.id,

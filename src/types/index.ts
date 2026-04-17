@@ -82,6 +82,7 @@ export interface Game {
   firstBasePlayerId?: ID | null;
   secondBasePlayerId?: ID | null;
   thirdBasePlayerId?: ID | null;
+  coachPitchActive?: boolean;
   lastPlay?: string;
   createdAt: number;
   updatedAt: number;

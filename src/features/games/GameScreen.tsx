@@ -9,6 +9,7 @@ import PitcherPicker from '@/components/PitcherPicker';
 import BaseActionMenu, { type BaseKey, type BaseAction } from '@/components/BaseActionMenu';
 import PlayingTimeBanner from '@/components/PlayingTimeBanner';
 import UndoHistory from '@/components/UndoHistory';
+import CountDisplay from '@/components/CountDisplay';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -163,6 +164,30 @@ export default function GameScreen() {
           </div>
         </div>
 
+        {/* Big visual B / S / O */}
+        <div className="mt-2">
+          <CountDisplay
+            balls={game.balls}
+            strikes={game.strikes}
+            outs={game.outs}
+            coachPitch={!!game.coachPitchActive}
+          />
+        </div>
+
+        {game.coachPitchActive && (
+          <div className="mt-2 rounded-xl border-2 border-ump-warn/70 bg-ump-warn/15 px-3 py-1.5 flex items-center gap-2 animate-pulse-slow">
+            <span className="text-2xl">🎯</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] uppercase font-black text-ump-warn tracking-widest">
+                Coach pitch active
+              </div>
+              <div className="text-sm font-bold text-phil-cream truncate">
+                Every coach pitch = STRIKE · no walks · 3 strikes = out
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Proactive playing-time call-out */}
         <div className="mt-2">
           <PlayingTimeBanner players={players} assignments={defense} game={game} settings={settings} />
@@ -303,9 +328,25 @@ export default function GameScreen() {
 
       <footer className="shrink-0 px-3 pt-2 pb-1 safe-bottom bg-phil-maroonDark/80 backdrop-blur border-t border-ump-line">
         <div className="grid grid-cols-3 gap-2 mb-2">
-          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => { haptic('light'); addPitch('ball'); }}>BALL</button>
-          <button className="tap-btn tap-btn-primary tap-btn-lg" onClick={() => { haptic('medium'); addPitch('strike'); }}>STRIKE</button>
-          <button className="tap-btn tap-btn-neutral tap-btn-lg" onClick={() => { haptic('light'); addPitch('foul'); }}>FOUL</button>
+          <button
+            className="tap-btn tap-btn-neutral tap-btn-lg"
+            disabled={!!game.coachPitchActive}
+            onClick={() => { haptic('light'); addPitch('ball'); }}
+          >
+            BALL
+          </button>
+          <button
+            className={`tap-btn tap-btn-primary tap-btn-lg ${game.coachPitchActive ? 'ring-4 ring-ump-warn/60' : ''}`}
+            onClick={() => { haptic('medium'); addPitch('strike'); }}
+          >
+            STRIKE
+          </button>
+          <button
+            className="tap-btn tap-btn-neutral tap-btn-lg"
+            onClick={() => { haptic('light'); addPitch('foul'); }}
+          >
+            FOUL
+          </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button className="tap-btn tap-btn-danger tap-btn-lg" onClick={() => { haptic('warning'); resolveAtBat('groundout', 0, 1); }}>OUT</button>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   atBatsRepo,
   defenseRepo,
@@ -64,6 +64,7 @@ function snapshotOf(game: Game): GameSnapshot {
     firstBasePlayerId: game.firstBasePlayerId,
     secondBasePlayerId: game.secondBasePlayerId,
     thirdBasePlayerId: game.thirdBasePlayerId,
+    coachPitchActive: game.coachPitchActive,
     inning: game.inning,
     halfInning: game.halfInning,
     currentPitcherPlayerId: game.currentPitcherPlayerId,
@@ -111,6 +112,9 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
 
   const playersById = useMemo(() => new Map(bundle.players.map((p) => [p.id, p])), [bundle.players]);
 
+  // Forward-ref so addPitch can call resolveAtBat without ordering issues.
+  const resolveAtBatRef = useRef<((r: AtBatResult, rbis?: number, outs?: number) => Promise<void>) | null>(null);
+
   const recordEvent = useCallback(
     async (type: GameEvent['type'], payload: unknown, undoOf?: string) => {
       if (!bundle.game) return;
@@ -132,13 +136,24 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
       const { game } = bundle;
       if (!game || !settings) return;
       const before = snapshotOf(game);
+      const inCoachPitch = !!game.coachPitchActive;
+
       let balls = game.balls;
       let strikes = game.strikes;
-      if (result === 'ball') balls += 1;
-      else if (result === 'strike') strikes += 1;
-      else if (result === 'foul') strikes = Math.min(2, strikes + 1);
+      let coachPitchActive = inCoachPitch;
 
-      if (opponentIsBatting(game) && game.currentPitcherPlayerId) {
+      if (inCoachPitch) {
+        // Every coach pitch counts as a strike; BALL is ignored (button disabled)
+        if (result === 'ball') return;
+        strikes = Math.min(3, strikes + 1);
+      } else {
+        if (result === 'ball') balls += 1;
+        else if (result === 'strike') strikes += 1;
+        else if (result === 'foul') strikes = Math.min(2, strikes + 1);
+      }
+
+      // Attribute pitch event to our kid pitcher only when NOT coach pitch
+      if (!inCoachPitch && opponentIsBatting(game) && game.currentPitcherPlayerId) {
         const latest = await atBatsRepo.latest(game.id);
         const ab =
           latest && latest.resultType === 'other' && latest.inning === game.inning
@@ -169,7 +184,32 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
         });
       }
 
-      await gamesRepo.update(game.id, { balls, strikes });
+      // ---- Auto-resolve: 3 strikes = strikeout
+      if (strikes >= 3) {
+        await gamesRepo.update(game.id, { balls, strikes, coachPitchActive: false });
+        await recordEvent('at_bat', { pitchResult: result, before });
+        await resolveAtBatRef.current?.('strikeout', 0, 1);
+        return;
+      }
+
+      // ---- Auto-resolve: 4 balls = walk, OR coach pitch kicks in
+      if (!inCoachPitch && balls >= 4) {
+        const basesLoaded =
+          !!game.firstBasePlayerId && !!game.secondBasePlayerId && !!game.thirdBasePlayerId;
+        const canWalkNow =
+          settings.allowWalks ||
+          (settings.seasonPhase === 'mid' && basesLoaded);
+        if (canWalkNow) {
+          await gamesRepo.update(game.id, { balls, strikes, coachPitchActive: false });
+          await recordEvent('at_bat', { pitchResult: result, before });
+          await resolveAtBatRef.current?.('walk', 0, 0);
+          return;
+        }
+        // Early season coach-pitch trigger
+        coachPitchActive = true;
+      }
+
+      await gamesRepo.update(game.id, { balls, strikes, coachPitchActive });
       await recordEvent('at_bat', { pitchResult: result, before });
       refresh();
     },
@@ -233,6 +273,7 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
         firstBasePlayerId: bases.first,
         secondBasePlayerId: bases.second,
         thirdBasePlayerId: bases.third,
+        coachPitchActive: false,
         lastPlay: describePlay(result, runs, playersById.get(batterId)?.displayName)
       };
 
@@ -265,6 +306,10 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
     },
     [bundle, settings, recordEvent, refresh, playersById]
   );
+
+  useEffect(() => {
+    resolveAtBatRef.current = resolveAtBat;
+  }, [resolveAtBat]);
 
   const setPitcher = useCallback(
     async (playerId: string) => {

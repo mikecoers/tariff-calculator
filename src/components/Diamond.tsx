@@ -22,7 +22,7 @@ export default function Diamond({
   onBaseTap
 }: DiamondProps) {
   return (
-    <div className={`relative w-full mx-auto ${compact ? 'max-w-[300px]' : 'max-w-[340px]'} aspect-square select-none`}>
+    <div className={`relative mx-auto ${compact ? 'max-w-[240px]' : 'max-w-[320px]'} w-full max-h-full aspect-square select-none`}>
       <div
         className="absolute inset-0 rounded-full bg-field-stripes border border-field-700/60"
         style={{ background: 'radial-gradient(circle at 50% 100%, #166534 0%, #0f4020 60%, #072414 100%)' }}

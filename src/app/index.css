@@ -55,14 +55,17 @@ body {
     @apply tap-btn text-phil-maroonDark shadow-tap shadow-glow;
     background-image: linear-gradient(180deg, #fcd34d 0%, #f59e0b 60%, #b45309 100%);
   }
+  .tap-btn-md {
+    @apply min-h-[52px] px-3 text-base;
+  }
   .tap-btn-lg {
-    @apply min-h-[64px] px-4 text-lg;
+    @apply min-h-[56px] px-3 text-base;
   }
   .tap-btn-xl {
-    @apply min-h-[76px] px-5 text-xl;
+    @apply min-h-[64px] px-4 text-lg;
   }
   .tap-btn-sm {
-    @apply min-h-[40px] px-3 text-sm;
+    @apply min-h-[36px] px-2.5 text-sm;
   }
 
   .card {

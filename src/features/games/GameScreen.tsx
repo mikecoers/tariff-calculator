@@ -12,7 +12,7 @@ import UndoHistory from '@/components/UndoHistory';
 import CountDisplay from '@/components/CountDisplay';
 import Lineup from '@/components/Lineup';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
-import { recommendDefensiveLineup } from '@/features/lineups/lineupRecommendationEngine';
+import { recommendDefensiveLineup, autoFillOpenPositions } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
 import { defenseRepo, gamesRepo, playersRepo } from '@/db/repositories';
 import { haptic, loadHapticsPref } from '@/lib/haptics';
@@ -570,6 +570,9 @@ function DefenseModal({
   const { settings } = useApp();
   const [rec, setRec] = useState<Array<{ playerId: string; position: Position; reason?: string }>>([]);
   const [allPlayers, setAllPlayers] = useState<Array<{ id: string; displayName: string }>>([]);
+  const [activePlayers, setActivePlayers] = useState<import('@/types').Player[]>([]);
+  const [priorAssigns, setPriorAssigns] = useState<import('@/types').DefensiveAssignment[]>([]);
+  const [gameSnap, setGameSnap] = useState<import('@/types').Game | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -581,13 +584,22 @@ function DefenseModal({
       const ps = await playersRepo.byTeam(game.teamId);
       const active = ps.filter((p) => p.active && !game.absentPlayerIds.includes(p.id));
       setAllPlayers(active.map((p) => ({ id: p.id, displayName: p.displayName })));
-      const priorAssigns = await defenseRepo.forGame(game.id);
+      setActivePlayers(active);
+      setGameSnap(game);
+      const prior = await defenseRepo.forGame(game.id);
+      setPriorAssigns(prior);
+      // Lock current pitcher so the rotation engine doesn't reassign them
+      const locked: Array<{ playerId: string; position: Position }> = [];
+      if (game.currentPitcherPlayerId && active.find((p) => p.id === game.currentPitcherPlayerId)) {
+        locked.push({ playerId: game.currentPitcherPlayerId, position: 'P' });
+      }
       const result = recommendDefensiveLineup({
         players: active,
         game,
         nextInning: game.inning,
         settings,
-        priorAssignments: priorAssigns
+        priorAssignments: prior,
+        lockedAssignments: locked
       });
       setRec(result.assignments);
       setLoading(false);
@@ -596,19 +608,54 @@ function DefenseModal({
 
   const updatePos = (pos: Position, pid: string) => {
     setRec((prev) => {
+      // Remove the new player from any previous slot AND clear the target slot
       const without = prev.filter((r) => r.position !== pos && r.playerId !== pid);
-      if (!pid) return without;
-      return [...without, { playerId: pid, position: pos, reason: 'Manual pick' }];
+      const next = pid
+        ? [...without, { playerId: pid, position: pos, reason: 'Manual pick' }]
+        : without;
+      // Auto-fill any newly-empty positions from the bench (highest-need first)
+      if (!gameSnap || !settings) return next;
+      const usedIds = new Set(next.map((r) => r.playerId));
+      const bench = activePlayers.filter((p) => !usedIds.has(p.id)).map((p) => p.id);
+      return autoFillOpenPositions({
+        current: next,
+        benchPlayerIds: bench,
+        players: activePlayers,
+        game: gameSnap,
+        settings,
+        priorAssignments: priorAssigns
+      });
     });
   };
+
+  const reroll = () => {
+    if (!gameSnap || !settings) return;
+    const locked: Array<{ playerId: string; position: Position }> = [];
+    if (gameSnap.currentPitcherPlayerId && activePlayers.find((p) => p.id === gameSnap.currentPitcherPlayerId)) {
+      locked.push({ playerId: gameSnap.currentPitcherPlayerId, position: 'P' });
+    }
+    const result = recommendDefensiveLineup({
+      players: activePlayers,
+      game: gameSnap,
+      nextInning: gameSnap.inning,
+      settings,
+      priorAssignments: priorAssigns,
+      lockedAssignments: locked
+    });
+    setRec(result.assignments);
+  };
+
+  const usedIds = new Set(rec.map((r) => r.playerId));
+  const benchView = activePlayers.filter((p) => !usedIds.has(p.id));
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Defense rotation"
+      title={`Defense — inning ${gameSnap?.inning ?? ''}`}
       footer={
         <>
+          <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={reroll}>🎲 Re-roll</button>
           <button className="tap-btn tap-btn-neutral tap-btn-sm" onClick={onClose}>Cancel</button>
           <button
             className="tap-btn tap-btn-maroon tap-btn-sm"
@@ -622,26 +669,45 @@ function DefenseModal({
       {loading ? (
         <div>Thinking…</div>
       ) : (
-        <div className="space-y-2">
-          {DEFENSIVE_POSITIONS.map((pos) => {
-            const current = rec.find((r) => r.position === pos);
-            return (
-              <div key={pos} className="flex items-center gap-2">
-                <div className="w-10 font-mono text-sm text-phil-maroon">{pos}</div>
-                <select
-                  className="input"
-                  value={current?.playerId ?? ''}
-                  onChange={(e) => updatePos(pos, e.target.value)}
-                >
-                  <option value="">— none —</option>
-                  {allPlayers.map((ap) => (
-                    <option key={ap.id} value={ap.id}>{ap.displayName}</option>
-                  ))}
-                </select>
-                {!current && <span className="text-xs text-ump-warn">unfilled</span>}
+        <div className="space-y-3">
+          <p className="text-[11px] text-phil-maroon">
+            Auto-randomized to even out playing time. Pitcher is locked from your pick.
+            Swap anyone — the bench fills in automatically.
+          </p>
+          <div className="space-y-1.5">
+            {DEFENSIVE_POSITIONS.map((pos) => {
+              const current = rec.find((r) => r.position === pos);
+              const isLockedP = pos === 'P' && current?.playerId === gameSnap?.currentPitcherPlayerId;
+              return (
+                <div key={pos} className="flex items-center gap-2">
+                  <div className="w-10 font-mono text-sm font-black text-phil-maroonDark">{pos}</div>
+                  <select
+                    className="input"
+                    value={current?.playerId ?? ''}
+                    onChange={(e) => updatePos(pos, e.target.value)}
+                    disabled={isLockedP}
+                  >
+                    <option value="">— none —</option>
+                    {allPlayers.map((ap) => (
+                      <option key={ap.id} value={ap.id}>{ap.displayName}</option>
+                    ))}
+                  </select>
+                  {isLockedP && <span className="chip-info">PITCHER</span>}
+                  {!current && !isLockedP && <span className="text-xs text-ump-warn font-bold">unfilled</span>}
+                </div>
+              );
+            })}
+          </div>
+          {benchView.length > 0 && (
+            <div className="rounded-xl border border-phil-maroon/30 bg-phil-blueLight px-2 py-2">
+              <div className="label mb-1">Bench · {benchView.length}</div>
+              <div className="flex flex-wrap gap-1">
+                {benchView.map((p) => (
+                  <span key={p.id} className="chip-info">{p.displayName}</span>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
     </Modal>

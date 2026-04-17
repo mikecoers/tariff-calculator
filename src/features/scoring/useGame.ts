@@ -495,12 +495,19 @@ export function useGame(gameId: string | undefined, settings: SeasonSettings | n
         source: 'auto' as const
       }));
       await defenseRepo.bulkInsert(toInsert);
+      // Pitcher is set manually via PitcherPicker. Only update from defense if
+      // a pitcher is actually assigned in the rotation AND we don't already
+      // have one set (or if the catcher is changing).
       const pitcher = assigns.find((a) => a.position === 'P');
       const catcher = assigns.find((a) => a.position === 'C');
-      await gamesRepo.update(bundle.game.id, {
-        currentPitcherPlayerId: pitcher?.playerId ?? bundle.game.currentPitcherPlayerId,
-        currentCatcherPlayerId: catcher?.playerId ?? bundle.game.currentCatcherPlayerId
-      });
+      const patch: Partial<Game> = {};
+      if (!bundle.game.currentPitcherPlayerId && pitcher) {
+        patch.currentPitcherPlayerId = pitcher.playerId;
+      }
+      if (catcher) patch.currentCatcherPlayerId = catcher.playerId;
+      if (Object.keys(patch).length > 0) {
+        await gamesRepo.update(bundle.game.id, patch);
+      }
       await recordEvent('defensive_change', { inning, count: assigns.length });
       refresh();
     },

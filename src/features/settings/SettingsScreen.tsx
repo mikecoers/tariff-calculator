@@ -5,6 +5,7 @@ import { useApp } from '@/app/AppContext';
 import { applySeasonPhaseDefaults } from './defaults';
 import { describePhase } from '@/features/rules/seasonPhaseRules';
 import { seedPhilliesRoster, WIPE_AND_RESEED } from '@/features/roster/seed';
+import { resetAllData } from '@/db/reset';
 
 export default function SettingsScreen() {
   const { team, settings, saveSettings } = useApp();
@@ -69,6 +70,26 @@ export default function SettingsScreen() {
           <Row label="First-half inning boundary">
             <NumberInput value={settings.firstHalfInningBoundary} onChange={(n) => saveSettings({ firstHalfInningBoundary: n })} />
           </Row>
+        </section>
+
+        <section className="card border-ump-crit/40">
+          <div className="field-label text-ump-crit">Danger zone</div>
+          <p className="text-xs text-ump-dim mt-1">
+            Wipe all teams, players, games, stats, and pitcher history on this device. This can't be undone.
+          </p>
+          <button
+            className="tap-btn tap-btn-danger tap-btn-lg w-full mt-3"
+            disabled={busy != null}
+            onClick={async () => {
+              if (!confirm('Reset everything? You will start from scratch.')) return;
+              if (!confirm('Are you absolutely sure? This clears all games and stats.')) return;
+              setBusy('reset');
+              await resetAllData();
+              window.location.href = '/home';
+            }}
+          >
+            Reset all data &amp; start over
+          </button>
         </section>
 
         <section className="card">

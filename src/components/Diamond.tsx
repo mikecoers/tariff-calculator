@@ -1,12 +1,12 @@
 interface DiamondProps {
-  batterName?: string;
+  batterName?: string | null;
   firstName?: string | null;
   secondName?: string | null;
   thirdName?: string | null;
   outs: number;
   balls: number;
   strikes: number;
-  onBasePress?: (base: 'first' | 'second' | 'third' | 'home') => void;
+  compact?: boolean;
 }
 
 export default function Diamond({
@@ -17,95 +17,99 @@ export default function Diamond({
   outs,
   balls,
   strikes,
-  onBasePress
+  compact = false
 }: DiamondProps) {
-  const filled = 'bg-ump-accent text-ump-bg border-ump-accent';
-  const empty = 'bg-ump-card text-ump-dim border-ump-line';
   return (
-    <div className="relative w-full aspect-square max-w-[340px] mx-auto select-none">
-      <div className="absolute inset-[10%] rotate-45 border-2 border-ump-line rounded-md bg-field-900/20" />
-
-      <BaseDot
-        position="top"
-        label="2B"
-        name={secondName}
-        className={secondName ? filled : empty}
-        onClick={() => onBasePress?.('second')}
+    <div className={`relative w-full mx-auto ${compact ? 'max-w-[300px]' : 'max-w-[340px]'} aspect-square select-none`}>
+      {/* outfield backdrop */}
+      <div
+        className="absolute inset-0 rounded-full bg-field-stripes border border-field-700/60"
+        style={{ background: 'radial-gradient(circle at 50% 100%, #166534 0%, #0f4020 60%, #072414 100%)' }}
       />
-      <BaseDot
-        position="right"
-        label="1B"
-        name={firstName}
-        className={firstName ? filled : empty}
-        onClick={() => onBasePress?.('first')}
-      />
-      <BaseDot
-        position="left"
-        label="3B"
-        name={thirdName}
-        className={thirdName ? filled : empty}
-        onClick={() => onBasePress?.('third')}
-      />
-      <BaseDot
-        position="bottom"
-        label="HOME"
-        name={batterName}
-        batter
-        className={batterName ? 'bg-ump-ok text-ump-bg border-ump-ok' : empty}
-        onClick={() => onBasePress?.('home')}
+      {/* infield diamond */}
+      <div
+        className="absolute inset-[14%] rotate-45 rounded-md border-2 border-white/20"
+        style={{ background: 'linear-gradient(160deg, #c2854a, #92400e 80%)' }}
       />
 
-      <div className="absolute inset-x-0 top-2 flex justify-center">
-        <div className="bg-ump-card/80 backdrop-blur rounded-full px-3 py-1 text-xs flex gap-3 border border-ump-line">
-          <span className="font-mono font-bold">{balls}-{strikes}</span>
+      {/* pitcher mound */}
+      <div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-dirt-200/50 border border-white/20"
+      />
+
+      {/* B-S-O strip */}
+      <div className="absolute top-1 inset-x-0 flex justify-center">
+        <div className="rounded-full px-3 py-1 text-xs flex items-center gap-2 bg-ump-bg/80 backdrop-blur border border-ump-line">
+          <span className="font-mono font-bold text-ump-ink">{balls}-{strikes}</span>
           <span className="text-ump-dim">·</span>
-          <span className="font-mono">
-            <span className={outs >= 1 ? 'text-ump-crit' : 'text-ump-dim'}>●</span>
-            <span className={outs >= 2 ? 'text-ump-crit ml-1' : 'text-ump-dim ml-1'}>●</span>
-            <span className={outs >= 3 ? 'text-ump-crit ml-1' : 'text-ump-dim ml-1'}>●</span>
+          <span className="flex gap-1">
+            <Dot active={outs >= 1} />
+            <Dot active={outs >= 2} />
+            <Dot active={outs >= 3} />
           </span>
         </div>
       </div>
+
+      <BaseMarker position="top" label="2B" name={secondName} />
+      <BaseMarker position="right" label="1B" name={firstName} />
+      <BaseMarker position="left" label="3B" name={thirdName} />
+      <BaseMarker position="bottom" label="HOME" name={batterName} home />
     </div>
   );
 }
 
-function BaseDot({
+function Dot({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`inline-block h-2.5 w-2.5 rounded-full ${active ? 'bg-ump-crit shadow-glowCrit' : 'bg-ump-line'}`}
+    />
+  );
+}
+
+function BaseMarker({
   position,
   label,
   name,
-  batter = false,
-  className,
-  onClick
+  home = false
 }: {
   position: 'top' | 'right' | 'bottom' | 'left';
   label: string;
   name?: string | null;
-  batter?: boolean;
-  className?: string;
-  onClick?: () => void;
+  home?: boolean;
 }) {
+  const occupied = !!name;
   const posStyles: Record<typeof position, string> = {
-    top: 'top-[6%] left-1/2 -translate-x-1/2',
-    right: 'right-[6%] top-1/2 -translate-y-1/2',
-    bottom: 'bottom-[6%] left-1/2 -translate-x-1/2',
-    left: 'left-[6%] top-1/2 -translate-y-1/2'
+    top: 'top-[8%] left-1/2 -translate-x-1/2',
+    right: 'right-[8%] top-1/2 -translate-y-1/2',
+    bottom: 'bottom-[8%] left-1/2 -translate-x-1/2',
+    left: 'left-[8%] top-1/2 -translate-y-1/2'
   };
+  const filledBg = home
+    ? 'bg-grad-ok border-white shadow-glowOk'
+    : 'bg-grad-amber border-white shadow-glow';
+  const emptyBg = 'bg-white/90 border-white/60';
   return (
-    <button
-      onClick={onClick}
-      className={`absolute ${posStyles[position]} flex flex-col items-center`}
-    >
+    <div className={`absolute ${posStyles[position]} flex flex-col items-center`}>
       <div
-        className={`h-14 w-14 rotate-45 border-2 rounded-md flex items-center justify-center transition ${className} ${
-          batter ? 'shadow-field' : ''
+        className={`h-12 w-12 rotate-45 border-2 rounded-sm flex items-center justify-center ${
+          occupied ? filledBg : emptyBg
+        } ${occupied ? 'animate-pop-in' : ''}`}
+      >
+        <span
+          className={`-rotate-45 text-[10px] font-black ${
+            occupied ? 'text-ump-bg' : 'text-ump-bg/70'
+          }`}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        className={`mt-1 text-[11px] font-bold max-w-[96px] truncate text-center ${
+          occupied ? 'text-ump-ink' : 'text-ump-dim'
         }`}
       >
-        <span className="-rotate-45 text-[10px] font-bold">{label}</span>
-      </div>
-      <div className="mt-1 text-xs font-semibold max-w-[100px] truncate text-center text-ump-ink">
         {name ?? '—'}
       </div>
-    </button>
+    </div>
   );
 }

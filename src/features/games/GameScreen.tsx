@@ -11,6 +11,7 @@ import PlayingTimeBanner from '@/components/PlayingTimeBanner';
 import UndoHistory from '@/components/UndoHistory';
 import CountDisplay from '@/components/CountDisplay';
 import Lineup from '@/components/Lineup';
+import RulesPlaybook from '@/components/RulesPlaybook';
 import { pitchLimitStatus } from '@/features/rules/pitchingRules';
 import { recommendDefensiveLineup, autoFillOpenPositions } from '@/features/lineups/lineupRecommendationEngine';
 import { DEFENSIVE_POSITIONS, type Position, type AtBatResult } from '@/types';
@@ -30,6 +31,7 @@ export default function GameScreen() {
   const [legendOpen, setLegendOpen] = useState(false);
   const [undoOpen, setUndoOpen] = useState(false);
   const [lineupOpen, setLineupOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [baseMenu, setBaseMenu] = useState<BaseKey | null>(null);
   const [flash, setFlash] = useState(0);
   const promptedForHalf = useRef<string>('');
@@ -389,7 +391,7 @@ export default function GameScreen() {
           <QuickAction icon="🧤" label="Defense" onClick={() => setDefenseOpen(true)} />
           <QuickAction icon="👥" label="Subs" onClick={() => setAbsentOpen(true)} />
           <QuickAction icon="↶" label="Undo" onClick={() => setUndoOpen(true)} />
-          <QuickAction icon="📺" label="Board" onClick={() => nav(`/game/${game.id}/scoreboard`)} />
+          <QuickAction icon="📒" label="Rules" onClick={() => setRulesOpen(true)} />
         </div>
       </footer>
 
@@ -466,6 +468,8 @@ export default function GameScreen() {
       />
 
       <Legend open={legendOpen} onClose={() => setLegendOpen(false)} />
+
+      <RulesPlaybook open={rulesOpen} onClose={() => setRulesOpen(false)} />
 
       <Modal
         open={menuOpen}

@@ -127,11 +127,11 @@ export default function DJApp() {
     );
 
   return (
-    <div className="min-h-full w-full flex flex-col">
-      <header className="px-4 sm:px-6 py-3 border-b border-white/10 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-3">
+    <div className="min-h-full w-full flex flex-col app-safe">
+      <header className="px-3 sm:px-6 py-3 border-b border-white/10 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center font-display text-xl"
+            className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center font-display text-xl"
             style={{
               background: 'radial-gradient(circle at 30% 30%, #22d3ee, #3a0e4e)',
               boxShadow: '0 0 20px -4px #22d3ee',
@@ -139,9 +139,9 @@ export default function DJApp() {
           >
             ♫
           </div>
-          <div>
+          <div className="min-w-0">
             <div
-              className="font-display text-2xl tracking-[0.25em]"
+              className="font-display text-xl sm:text-2xl tracking-[0.2em] sm:tracking-[0.25em] truncate"
               style={{
                 background: 'linear-gradient(90deg, #67e8f9, #f0abfc)',
                 WebkitBackgroundClip: 'text',
@@ -150,19 +150,18 @@ export default function DJApp() {
             >
               YT DJ MIX LAB
             </div>
-            <div className="text-[10px] font-mono text-white/50 uppercase tracking-widest">
-              YouTube turntables · EQ · AI blends · MPC
+            <div className="text-[10px] font-mono text-white/50 uppercase tracking-widest truncate">
+              Turntables · EQ · AI · MPC
             </div>
           </div>
         </div>
-        <div className="text-[10px] font-mono text-white/50 leading-tight max-w-xs text-right">
-          Paste two YouTube URLs to load the decks. Drag knobs up/down, work the crossfader, and
-          hit an AI button to auto-mix.
+        <div className="hidden lg:block text-[10px] font-mono text-white/50 leading-tight max-w-xs text-right">
+          Paste two YouTube URLs, work the crossfader, hit an AI button to auto-mix.
         </div>
       </header>
 
-      <main className="flex-1 p-3 sm:p-4 flex flex-col gap-4 max-w-[1400px] mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <main className="flex-1 p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 max-w-[1400px] mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
           <Deck
             side="A"
             accent="#67e8f9"
@@ -196,14 +195,14 @@ export default function DJApp() {
 
         <MPC deckA={deckA} deckB={deckB} masterVolume={master} />
 
-        <footer className="text-[10px] font-mono text-white/40 text-center pb-3 leading-relaxed">
-          <span className="text-white/60">Keys:</span> 1-4 / Q-R / A-F / Z-V trigger pads · Space
-          plays the loop ·{' '}
-          <span className="text-white/60">Shift-click</span> a CHOP pad to capture the current deck
-          timestamp ·{' '}
-          <span className="text-white/60">Double-click</span> an EQ knob to reset it. Try layering
-          a classic break on Deck A with a vocal acapella on Deck B, kill Deck A's mids and ride
-          the crossfader 🎛️
+        <footer className="text-[10px] font-mono text-white/40 text-center pb-3 leading-relaxed px-2">
+          <span className="hidden sm:inline">
+            <span className="text-white/60">Keys:</span> 1-4 / Q-R / A-F / Z-V trigger pads · Space
+            plays the loop ·{' '}
+          </span>
+          <span className="text-white/60">Tap &amp; hold</span> Bind Chop then tap a CHOP pad to
+          capture a deck timestamp ·{' '}
+          <span className="text-white/60">Double-tap</span> an EQ knob to reset it.
         </footer>
       </main>
     </div>

@@ -9,7 +9,7 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
   overscroll-behavior-y: contain;
   background:
     radial-gradient(ellipse at 15% 0%, #3a0e4e 0%, #0a0a12 45%),
@@ -20,8 +20,28 @@ body,
   font-feature-settings: 'cv02', 'cv03', 'cv04';
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 body {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS: prevent zoom-on-focus by keeping inputs at 16px+ */
+input,
+textarea,
+select,
+button {
+  font-size: 16px;
+}
+
+.app-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
 }
 
 @layer components {
@@ -73,15 +93,13 @@ body {
 }
 
 /* Custom range slider for crossfader & volume */
-input[type='range'].slider-y,
 input[type='range'].slider-x {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
-}
-input[type='range'].slider-x {
   width: 100%;
-  height: 32px;
+  height: 36px;
+  touch-action: pan-y;
 }
 input[type='range'].slider-x::-webkit-slider-runnable-track {
   height: 8px;
@@ -91,9 +109,9 @@ input[type='range'].slider-x::-webkit-slider-runnable-track {
 }
 input[type='range'].slider-x::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 28px;
-  height: 28px;
-  margin-top: -10px;
+  width: 32px;
+  height: 32px;
+  margin-top: -12px;
   border-radius: 8px;
   background: linear-gradient(180deg, #f5f3ff 0%, #9ca3af 100%);
   border: 1px solid rgba(0,0,0,0.6);
@@ -106,19 +124,12 @@ input[type='range'].slider-x::-moz-range-track {
   background: linear-gradient(90deg, rgba(103,232,249,0.4), rgba(240,171,252,0.4));
 }
 input[type='range'].slider-x::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: linear-gradient(180deg, #f5f3ff 0%, #9ca3af 100%);
   border: 1px solid rgba(0,0,0,0.6);
   cursor: pointer;
-}
-
-input[type='range'].slider-y {
-  writing-mode: bt-lr;
-  -webkit-appearance: slider-vertical;
-  width: 32px;
-  height: 140px;
 }
 
 @keyframes spin-slow {

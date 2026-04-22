@@ -207,14 +207,16 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
   );
 
   return (
-    <div className="panel p-4 flex flex-col gap-3">
+    <div className="panel p-3 sm:p-4 flex flex-col gap-3">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-display text-xl tracking-widest text-white/90">AKC MPC</span>
-          <span className="pill">16 PADS</span>
+          <span className="font-display text-lg sm:text-xl tracking-widest text-white/90">
+            AKC MPC
+          </span>
+          <span className="pill hidden sm:inline-flex">16 PADS</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setBindMode((b) => !b)}
             className={`neon-btn ${bindMode ? 'neon-btn-amber pulse-glow' : ''}`}
@@ -238,18 +240,21 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
               min={40}
               max={220}
               value={bpm}
-              onChange={(e) => setBpm(Math.max(40, Math.min(220, Number(e.target.value) || 96)))}
-              className="w-16 px-2 py-1 text-sm font-mono bg-black/60 border border-white/10 rounded"
+              onChange={(e) =>
+                setBpm(Math.max(40, Math.min(220, Number(e.target.value) || 96)))
+              }
+              className="w-16 px-2 py-1 text-[16px] font-mono bg-black/60 border border-white/10 rounded"
             />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Pads */}
         <div>
-          <div className="label-cap mb-2">Pads (keys {PAD_KEYS.join(' ')})</div>
-          <div className="grid grid-cols-4 gap-2 p-3 rounded-xl bg-black/50 border border-white/10">
+          <div className="label-cap mb-2 hidden sm:block">Pads (keys {PAD_KEYS.join(' ')})</div>
+          <div className="label-cap mb-2 sm:hidden">Pads</div>
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 p-2 sm:p-3 rounded-xl bg-black/50 border border-white/10">
             {DEFAULT_PADS.map((pad, idx) => {
               const row = Math.floor(idx / 4);
               const col = idx % 4;
@@ -288,27 +293,54 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
             })}
           </div>
           <div className="text-[10px] text-white/40 mt-2 leading-snug">
-            Tip: Shift+click a CHOP pad (or toggle Bind Chop) to capture the current Deck A/B
-            timestamp. Tap the pad to stutter back to that moment — loop samples from any YouTube track.
+            Tip: Tap Bind Chop then tap a CHOP pad to capture the current deck timestamp. Tap the
+            pad again to stutter back — loop slices from any YouTube track.
           </div>
         </div>
 
         {/* Step sequencer */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="label-cap">
-              Sequencer — editing:{' '}
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="label-cap truncate">
+              Seq — editing:{' '}
               <span style={{ color: padBg[Math.floor(selectedPad / 4)][selectedPad % 4] }}>
                 {PAD_LABELS[selectedPad]}
               </span>
             </div>
-            <div className="pill">
-              {playing ? `STEP ${step + 1}/16` : '16 STEPS'}
-            </div>
+            <div className="pill shrink-0">{playing ? `STEP ${step + 1}/16` : '16 STEPS'}</div>
           </div>
-          <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/50 border border-white/10">
+
+          {/* Pad-select chips — scroll horizontally on phone, grid on larger screens */}
+          <div className="flex gap-1 overflow-x-auto pb-1 mb-2 -mx-1 px-1 sm:grid sm:grid-cols-8 lg:hidden">
+            {DEFAULT_PADS.map((_pad, pIdx) => {
+              const color = padBg[Math.floor(pIdx / 4)][pIdx % 4];
+              const isActive = selectedPad === pIdx;
+              const hasSteps = pattern[pIdx].some((x) => x);
+              return (
+                <button
+                  key={pIdx}
+                  onClick={() => setSelectedPad(pIdx)}
+                  className="shrink-0 min-w-[52px] px-2 py-1.5 rounded text-[10px] font-bold border transition-all"
+                  style={{
+                    background: isActive ? `${color}33` : 'rgba(255,255,255,0.04)',
+                    borderColor: isActive ? color : 'rgba(255,255,255,0.08)',
+                    color: isActive ? color : 'rgba(255,255,255,0.7)',
+                    boxShadow: isActive ? `0 0 10px -2px ${color}` : 'none',
+                  }}
+                >
+                  {PAD_LABELS[pIdx]}
+                  {hasSteps && <span className="ml-1 opacity-60">•</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-1 p-2 sm:p-3 rounded-xl bg-black/50 border border-white/10">
             {/* current pad row editor */}
-            <div className="grid grid-cols-16 gap-1" style={{ gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' }}>
+            <div
+              className="grid gap-[3px] sm:gap-1"
+              style={{ gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' }}
+            >
               {pattern[selectedPad].map((on, i) => {
                 const isBeat = i % 4 === 0;
                 const isCurrent = playing && step === i;
@@ -317,14 +349,16 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
                   <button
                     key={i}
                     onClick={() => toggleStep(selectedPad, i)}
-                    className="h-10 rounded"
+                    className="h-9 sm:h-10 rounded touch-manipulation"
                     style={{
                       background: on
                         ? `linear-gradient(180deg, ${color}, ${color}66)`
                         : isBeat
                         ? 'rgba(255,255,255,0.07)'
                         : 'rgba(255,255,255,0.03)',
-                      border: isCurrent ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.06)',
+                      border: isCurrent
+                        ? `1px solid ${color}`
+                        : '1px solid rgba(255,255,255,0.06)',
                       boxShadow: on ? `0 0 10px ${color}88` : 'none',
                     }}
                     aria-label={`step ${i + 1}`}
@@ -332,8 +366,12 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
                 );
               })}
             </div>
-            {/* mini overview of all rows */}
-            <div className="mt-2 grid gap-[2px]" style={{ gridTemplateRows: 'repeat(16, 6px)' }}>
+
+            {/* mini overview — hidden on small screens, click rows to switch pads on desktop */}
+            <div
+              className="mt-2 gap-[2px] hidden lg:grid"
+              style={{ gridTemplateRows: 'repeat(16, 6px)' }}
+            >
               {pattern.map((row, pIdx) => (
                 <div
                   key={pIdx}
@@ -349,7 +387,11 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
                         key={i}
                         className="h-[6px] rounded-[1px]"
                         style={{
-                          background: on ? color : isCurrent ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)',
+                          background: on
+                            ? color
+                            : isCurrent
+                            ? 'rgba(255,255,255,0.15)'
+                            : 'rgba(255,255,255,0.04)',
                           opacity: pIdx === selectedPad ? 1 : 0.55,
                         }}
                       />
@@ -360,7 +402,12 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
             </div>
           </div>
           <div className="text-[10px] text-white/40 mt-2 leading-snug">
-            Click the mini rows on the left to switch which pad you're programming. Spacebar plays/stops the loop.
+            <span className="hidden lg:inline">
+              Click the mini rows to switch pads. Spacebar plays/stops the loop.
+            </span>
+            <span className="lg:hidden">
+              Swipe the pad chips above to pick which pad you're programming.
+            </span>
           </div>
         </div>
       </div>

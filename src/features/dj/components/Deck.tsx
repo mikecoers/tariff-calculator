@@ -18,7 +18,7 @@ interface DeckProps {
   onEQChange: (eq: DeckEQ) => void;
   volume: number; // 0..1
   onVolume: (v: number) => void;
-  onStutter?: (pos: number) => void; // for MPC binding indicator
+  onStutter?: (pos: number) => void;
 }
 
 export default function Deck({
@@ -41,12 +41,15 @@ export default function Deck({
   const rateIdx = ALLOWED_RATES.indexOf(state.rate as (typeof ALLOWED_RATES)[number]);
 
   return (
-    <div className="panel p-4 flex flex-col gap-3" style={{ boxShadow: `0 0 40px -24px ${accent}` }}>
+    <div
+      className="panel p-3 sm:p-4 flex flex-col gap-3"
+      style={{ boxShadow: `0 0 40px -24px ${accent}` }}
+    >
       {/* header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
-            className="font-display text-2xl tracking-widest"
+            className="font-display text-xl sm:text-2xl tracking-widest"
             style={{ color: accent, textShadow: `0 0 12px ${accent}` }}
           >
             DECK {side}
@@ -67,10 +70,14 @@ export default function Deck({
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste YouTube URL or video ID"
-          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/10 text-sm placeholder-white/30 focus:outline-none focus:border-white/30 font-mono"
+          placeholder="Paste YouTube URL or ID"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-black/60 border border-white/10 text-[16px] placeholder-white/30 focus:outline-none focus:border-white/30 font-mono"
         />
-        <button type="submit" className="neon-btn neon-btn-cyan" style={{ color: accent }}>
+        <button type="submit" className="neon-btn neon-btn-cyan shrink-0" style={{ color: accent }}>
           Load
         </button>
       </form>
@@ -80,10 +87,12 @@ export default function Deck({
         {state.title || (state.videoId ? `id:${state.videoId}` : '—')}
       </div>
 
-      {/* turntable + hidden YT iframe mount */}
+      {/* turntable */}
       <div className="flex items-center justify-center py-1">
         <Turntable videoId={state.videoId} spinning={state.isPlaying} accent={accent} side={side} />
       </div>
+
+      {/* hidden YT iframe mount (offscreen so audio still plays) */}
       <div
         ref={controller.mountRef}
         className="fixed left-[-9999px] top-0 w-[320px] h-[180px] overflow-hidden pointer-events-none"
@@ -92,7 +101,7 @@ export default function Deck({
 
       {/* timeline */}
       <div className="flex items-center gap-2 text-[10px] font-mono text-white/60">
-        <span>{formatTime(state.currentTime)}</span>
+        <span className="tabular-nums w-8">{formatTime(state.currentTime)}</span>
         <input
           type="range"
           min={0}
@@ -102,28 +111,29 @@ export default function Deck({
           onChange={(e) => seekTo(Number(e.target.value))}
           className="slider-x flex-1"
           disabled={!state.isReady || !state.videoId}
+          aria-label="Seek"
         />
-        <span>{formatTime(state.duration)}</span>
+        <span className="tabular-nums w-8 text-right">{formatTime(state.duration)}</span>
       </div>
 
-      {/* transport + tempo */}
+      {/* transport */}
       <div className="flex items-center gap-2">
         <button
           onClick={toggle}
-          className="neon-btn flex-1"
+          className="neon-btn flex-1 py-3"
           style={{ color: accent, boxShadow: `0 0 14px -5px ${accent}` }}
           disabled={!state.videoId}
         >
           {state.isPlaying ? '▐▐ Pause' : '▶ Play'}
         </button>
-        <button onClick={cue} className="neon-btn" disabled={!state.videoId}>
+        <button onClick={cue} className="neon-btn py-3 px-4" disabled={!state.videoId}>
           ⟲ Cue
         </button>
       </div>
 
-      {/* tempo select */}
+      {/* tempo */}
       <div className="flex items-center gap-2">
-        <span className="label-cap">Tempo</span>
+        <span className="label-cap w-14 shrink-0">Tempo</span>
         <input
           type="range"
           min={0}
@@ -133,11 +143,12 @@ export default function Deck({
           onChange={(e) => setRate(ALLOWED_RATES[Number(e.target.value)])}
           className="slider-x flex-1"
           disabled={!state.isReady}
+          aria-label="Tempo"
         />
       </div>
 
-      {/* EQ + volume */}
-      <div className="panel-inset p-3 flex items-center justify-between gap-2">
+      {/* EQ row */}
+      <div className="panel-inset p-3 flex items-center justify-around gap-2">
         <Knob
           label="LOW"
           hint="60Hz"
@@ -146,7 +157,7 @@ export default function Deck({
           onChange={(v) => onEQChange({ ...eq, low: v })}
           bipolar
           onDoubleClick={() => onEQChange({ ...eq, low: 0.5 })}
-          size={58}
+          size={64}
         />
         <Knob
           label="MID"
@@ -156,7 +167,7 @@ export default function Deck({
           onChange={(v) => onEQChange({ ...eq, mid: v })}
           bipolar
           onDoubleClick={() => onEQChange({ ...eq, mid: 0.5 })}
-          size={58}
+          size={64}
         />
         <Knob
           label="HIGH"
@@ -166,24 +177,24 @@ export default function Deck({
           onChange={(v) => onEQChange({ ...eq, high: v })}
           bipolar
           onDoubleClick={() => onEQChange({ ...eq, high: 0.5 })}
-          size={58}
+          size={64}
         />
-        <div className="flex flex-col items-center gap-1">
-          <div className="relative h-[110px] w-8 flex items-end justify-center panel-inset">
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={(e) => onVolume(Number(e.target.value))}
-              className="slider-y"
-              style={{ writingMode: 'vertical-lr' as any, direction: 'rtl' }}
-              aria-label="Deck volume"
-            />
-          </div>
-          <div className="label-cap">Vol</div>
-        </div>
+      </div>
+
+      {/* volume — horizontal so it behaves well on iOS Safari */}
+      <div className="flex items-center gap-2">
+        <span className="label-cap w-14 shrink-0">Vol</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(e) => onVolume(Number(e.target.value))}
+          className="slider-x flex-1"
+          aria-label="Deck volume"
+        />
+        <span className="pill tabular-nums w-10 justify-center">{Math.round(volume * 100)}</span>
       </div>
     </div>
   );

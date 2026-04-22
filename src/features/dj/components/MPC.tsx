@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playDrum, type DrumKind } from '../utils/drums';
-import type { DeckController } from '../hooks/useYouTubePlayer';
+import { ensureRunning, getAudioContext, getMasterGain } from '../sources/audioGraph';
+import type { DeckSource, DeckSourceState } from '../sources/types';
 
-// 16 pads, 4x4 grid.
-// Rows:
-//  0: kick, snare, clap, closedHat  (drums)
-//  1: openHat, lowTom, highTom, rim (drums)
-//  2: cowbell, crash, perc, zap     (perc)
-//  3: chopA1, chopA2, chopB1, chopB2 (YouTube chops — bind by shift+click)
+// 16 pads, 4x4 grid. Last row = deck slice chops bound to an A/B timestamp.
 type PadKind = { type: 'drum'; kind: DrumKind } | { type: 'chop'; deck: 'A' | 'B'; slot: number };
 
 const DEFAULT_PADS: PadKind[] = [
@@ -44,52 +40,30 @@ const PAD_KEYS: string[] = [
 ];
 
 interface MPCProps {
-  deckA: DeckController;
-  deckB: DeckController;
-  masterVolume: number;
+  getDeckASource: () => DeckSource | null;
+  getDeckBSource: () => DeckSource | null;
+  deckAState: DeckSourceState | null;
+  deckBState: DeckSourceState | null;
 }
 
 type ChopBinding = { time: number; duration: number }; // duration in ms
 
-export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const outGainRef = useRef<GainNode | null>(null);
-
+export default function MPC({
+  getDeckASource,
+  getDeckBSource,
+  deckAState,
+  deckBState,
+}: MPCProps) {
   const [bpm, setBpm] = useState(96);
   const [playing, setPlaying] = useState(false);
   const [step, setStep] = useState(0);
-  // pattern[padIdx][stepIdx] = 0/1
   const [pattern, setPattern] = useState<number[][]>(() =>
     Array.from({ length: 16 }, () => Array(16).fill(0))
   );
   const [selectedPad, setSelectedPad] = useState(0);
-  // chop bindings: 4 slots indexed by pad 12..15
   const [chops, setChops] = useState<Record<number, ChopBinding>>({});
   const [bindMode, setBindMode] = useState(false);
   const [flash, setFlash] = useState<number | null>(null);
-
-  // Init audio context lazily
-  const ensureAudio = useCallback(() => {
-    if (!audioCtxRef.current) {
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new Ctor();
-      const g = ctx.createGain();
-      g.gain.value = masterVolume;
-      g.connect(ctx.destination);
-      audioCtxRef.current = ctx;
-      outGainRef.current = g;
-    }
-    if (audioCtxRef.current?.state === 'suspended') {
-      void audioCtxRef.current.resume();
-    }
-    return audioCtxRef.current!;
-  }, [masterVolume]);
-
-  useEffect(() => {
-    if (outGainRef.current) outGainRef.current.gain.value = masterVolume;
-  }, [masterVolume]);
 
   const triggerPad = useCallback(
     (idx: number) => {
@@ -98,41 +72,35 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
       window.setTimeout(() => setFlash((f) => (f === idx ? null : f)), 120);
 
       if (pad.type === 'drum') {
-        const ctx = ensureAudio();
-        playDrum(ctx, outGainRef.current!, pad.kind);
+        void ensureRunning();
+        const ctx = getAudioContext();
+        playDrum(ctx, getMasterGain(), pad.kind);
       } else {
         const binding = chops[idx];
         if (!binding) return;
-        const deck = pad.deck === 'A' ? deckA : deckB;
-        deck.stutter(binding.time, binding.duration);
+        const source = pad.deck === 'A' ? getDeckASource() : getDeckBSource();
+        source?.stutter(binding.time, binding.duration);
       }
     },
-    [chops, deckA, deckB, ensureAudio]
+    [chops, getDeckASource, getDeckBSource]
   );
 
   const handlePadClick = useCallback(
     (idx: number, shift: boolean) => {
       setSelectedPad(idx);
       const pad = DEFAULT_PADS[idx];
-      if (bindMode && pad.type === 'chop') {
-        const deck = pad.deck === 'A' ? deckA : deckB;
+      if ((bindMode || shift) && pad.type === 'chop') {
+        const state = pad.deck === 'A' ? deckAState : deckBState;
+        if (!state?.track) return;
         setChops((c) => ({
           ...c,
-          [idx]: { time: deck.state.currentTime, duration: 500 },
-        }));
-        return;
-      }
-      if (shift && pad.type === 'chop') {
-        const deck = pad.deck === 'A' ? deckA : deckB;
-        setChops((c) => ({
-          ...c,
-          [idx]: { time: deck.state.currentTime, duration: 500 },
+          [idx]: { time: state.currentTime, duration: 500 },
         }));
         return;
       }
       triggerPad(idx);
     },
-    [bindMode, deckA, deckB, triggerPad]
+    [bindMode, deckAState, deckBState, triggerPad]
   );
 
   // Keyboard triggers
@@ -159,7 +127,7 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
       setStep(0);
       return;
     }
-    ensureAudio();
+    void ensureRunning();
     const stepMs = 60_000 / bpm / 4; // 16th notes
     let s = 0;
     setStep(0);
@@ -179,7 +147,7 @@ export default function MPC({ deckA, deckB, masterVolume }: MPCProps) {
       }
     }, Math.max(6, stepMs / 4));
     return () => window.clearInterval(id);
-  }, [playing, bpm, pattern, triggerPad, ensureAudio]);
+  }, [playing, bpm, pattern, triggerPad]);
 
   const toggleStep = useCallback(
     (padIdx: number, stepIdx: number) => {

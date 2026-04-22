@@ -2,30 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Deck, { type DeckEQ } from './components/Deck';
 import Mixer from './components/Mixer';
 import MPC from './components/MPC';
-import { useYouTubePlayer } from './hooks/useYouTubePlayer';
+import ConfigModal from './components/ConfigModal';
+import type { DeckSource, DeckSourceState } from './sources/types';
+import { setMasterVolume } from './sources/audioGraph';
 import { runBeatMatch, runDropMix, runGenreBlend } from './utils/aiMix';
+import { completeAuthFromUrl } from './sources/spotifyAuth';
 
 const NEUTRAL_EQ: DeckEQ = { low: 0.5, mid: 0.5, high: 0.5 };
-
-/**
- * Because YouTube iframes can't be routed through Web Audio API (cross-origin),
- * we simulate EQ by modulating deck volume. Each EQ knob acts DJ-kill-style:
- * at 0.5 it's neutral (no attenuation); below 0.5 it attenuates that frequency's
- * contribution. The three knobs combine multiplicatively (with each contributing
- * 1/3 of the attenuation envelope). This gives satisfying kill-switch feel
- * while remaining honest about what's happening.
- */
-function eqGain(eq: DeckEQ): number {
-  // each band maps 0..1 -> 0.2..1.2, knob at 0.5 == 1.0 (neutral, weight 1/3)
-  const bandGain = (v: number) => {
-    // at 0 -> 0.0 (kill), at 0.5 -> 1.0, at 1 -> 1.2 (slight boost)
-    if (v <= 0.5) return v * 2; // 0..1
-    return 1 + (v - 0.5) * 0.4; // 1..1.2
-  };
-  // combine as average (so one kill doesn't fully silence the other two bands)
-  const g = (bandGain(eq.low) + bandGain(eq.mid) + bandGain(eq.high)) / 3;
-  return Math.max(0, Math.min(1.2, g));
-}
 
 /** Equal-power crossfade: at x=0.5 both decks are at ~0.707 */
 function crossGains(x: number): { a: number; b: number } {
@@ -35,9 +18,6 @@ function crossGains(x: number): { a: number; b: number } {
 }
 
 export default function DJApp() {
-  const deckA = useYouTubePlayer('yt-deck-a');
-  const deckB = useYouTubePlayer('yt-deck-b');
-
   const [eqA, setEQA] = useState<DeckEQ>(NEUTRAL_EQ);
   const [eqB, setEQB] = useState<DeckEQ>(NEUTRAL_EQ);
   const [volA, setVolA] = useState(0.85);
@@ -45,8 +25,55 @@ export default function DJApp() {
   const [master, setMaster] = useState(0.9);
   const [crossfade, setCrossfade] = useState(0.5);
   const [aiRunning, setAiRunning] = useState<string | null>(null);
+  const [configOpen, setConfigOpen] = useState(false);
 
-  // Keep latest EQs in refs for the AI animator
+  const sourceA = useRef<DeckSource | null>(null);
+  const sourceB = useRef<DeckSource | null>(null);
+  const [stateA, setStateA] = useState<DeckSourceState | null>(null);
+  const [stateB, setStateB] = useState<DeckSourceState | null>(null);
+
+  // Complete Spotify OAuth on page load if we came back with ?code=
+  useEffect(() => {
+    void completeAuthFromUrl().catch((err) => {
+      console.warn('Spotify auth completion failed', err);
+    });
+  }, []);
+
+  // Subscribe to source state
+  const onSourceA = useCallback((s: DeckSource | null) => {
+    sourceA.current = s;
+    if (!s) {
+      setStateA(null);
+      return;
+    }
+    const unsub = s.subscribe(setStateA);
+    return unsub;
+  }, []);
+  const onSourceB = useCallback((s: DeckSource | null) => {
+    sourceB.current = s;
+    if (!s) {
+      setStateB(null);
+      return;
+    }
+    const unsub = s.subscribe(setStateB);
+    return unsub;
+  }, []);
+
+  // Push master volume into shared graph
+  useEffect(() => {
+    setMasterVolume(master);
+  }, [master]);
+
+  // Compute effective crossfade multipliers (passed through to the Deck)
+  const { a: gainA, b: gainB } = crossGains(crossfade);
+  const masterFadeA = master * gainA;
+  const masterFadeB = master * gainB;
+
+  const levels = {
+    a: stateA?.isPlaying ? volA * masterFadeA : 0,
+    b: stateB?.isPlaying ? volB * masterFadeB : 0,
+  };
+
   const eqARef = useRef(eqA);
   const eqBRef = useRef(eqB);
   useEffect(() => {
@@ -55,26 +82,6 @@ export default function DJApp() {
   useEffect(() => {
     eqBRef.current = eqB;
   }, [eqB]);
-
-  // Derive effective YouTube volumes (0..1) and push into players.
-  useEffect(() => {
-    const { a, b } = crossGains(crossfade);
-    const effA = master * volA * a * eqGain(eqA);
-    const effB = master * volB * b * eqGain(eqB);
-    deckA.setVolume(Math.max(0, Math.min(1, effA)));
-    deckB.setVolume(Math.max(0, Math.min(1, effB)));
-  }, [crossfade, master, volA, volB, eqA, eqB, deckA, deckB]);
-
-  const levels = {
-    a: (() => {
-      const { a } = crossGains(crossfade);
-      return deckA.state.isPlaying ? master * volA * a * eqGain(eqA) : 0;
-    })(),
-    b: (() => {
-      const { b } = crossGains(crossfade);
-      return deckB.state.isPlaying ? master * volB * b * eqGain(eqB) : 0;
-    })(),
-  };
 
   const runAI = useCallback(
     async (name: string, fn: () => Promise<void>) => {
@@ -89,42 +96,15 @@ export default function DJApp() {
     [aiRunning]
   );
 
-  const onAIBeatMatch = () =>
-    runAI('Beat Match', () =>
-      runBeatMatch({
-        deckA,
-        deckB,
-        setCrossfade,
-        setEQA,
-        setEQB,
-        eqA: eqARef.current,
-        eqB: eqBRef.current,
-      })
-    );
-  const onAIGenreBlend = () =>
-    runAI('Genre Blend', () =>
-      runGenreBlend({
-        deckA,
-        deckB,
-        setCrossfade,
-        setEQA,
-        setEQB,
-        eqA: eqARef.current,
-        eqB: eqBRef.current,
-      })
-    );
-  const onAIDropMix = () =>
-    runAI('Drop Mix', () =>
-      runDropMix({
-        deckA,
-        deckB,
-        setCrossfade,
-        setEQA,
-        setEQB,
-        eqA: eqARef.current,
-        eqB: eqBRef.current,
-      })
-    );
+  const aiCtx = () => ({
+    deckA: sourceA.current,
+    deckB: sourceB.current,
+    setCrossfade,
+    setEQA,
+    setEQB,
+    eqA: eqARef.current,
+    eqB: eqBRef.current,
+  });
 
   return (
     <div className="min-h-full w-full flex flex-col app-safe">
@@ -148,16 +128,16 @@ export default function DJApp() {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              YT DJ MIX LAB
+              DJ MIX LAB
             </div>
             <div className="text-[10px] font-mono text-white/50 uppercase tracking-widest truncate">
-              Turntables · EQ · AI · MPC
+              Spotify · Apple Music · Suno · Bandcamp
             </div>
           </div>
         </div>
-        <div className="hidden lg:block text-[10px] font-mono text-white/50 leading-tight max-w-xs text-right">
-          Paste two YouTube URLs, work the crossfader, hit an AI button to auto-mix.
-        </div>
+        <button onClick={() => setConfigOpen(true)} className="neon-btn shrink-0">
+          ⚙ Connect
+        </button>
       </header>
 
       <main className="flex-1 p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 max-w-[1400px] mx-auto w-full">
@@ -165,35 +145,44 @@ export default function DJApp() {
           <Deck
             side="A"
             accent="#67e8f9"
-            controller={deckA}
             eq={eqA}
             onEQChange={setEQA}
             volume={volA}
             onVolume={setVolA}
+            masterFade={masterFadeA}
+            onDeckSourceChange={(s) => onSourceA(s)}
+            onOpenConfig={() => setConfigOpen(true)}
           />
           <Mixer
             crossfade={crossfade}
             onCrossfade={setCrossfade}
             masterVolume={master}
             onMasterVolume={setMaster}
-            onAIBeatMatch={onAIBeatMatch}
-            onAIGenreBlend={onAIGenreBlend}
-            onAIDropMix={onAIDropMix}
+            onAIBeatMatch={() => runAI('Beat Match', () => runBeatMatch(aiCtx()))}
+            onAIGenreBlend={() => runAI('Genre Blend', () => runGenreBlend(aiCtx()))}
+            onAIDropMix={() => runAI('Drop Mix', () => runDropMix(aiCtx()))}
             aiRunning={aiRunning}
             levels={levels}
           />
           <Deck
             side="B"
             accent="#f0abfc"
-            controller={deckB}
             eq={eqB}
             onEQChange={setEQB}
             volume={volB}
             onVolume={setVolB}
+            masterFade={masterFadeB}
+            onDeckSourceChange={(s) => onSourceB(s)}
+            onOpenConfig={() => setConfigOpen(true)}
           />
         </div>
 
-        <MPC deckA={deckA} deckB={deckB} masterVolume={master} />
+        <MPC
+          getDeckASource={() => sourceA.current}
+          getDeckBSource={() => sourceB.current}
+          deckAState={stateA}
+          deckBState={stateB}
+        />
 
         <footer className="text-[10px] font-mono text-white/40 text-center pb-3 leading-relaxed px-2">
           <span className="hidden sm:inline">
@@ -201,10 +190,18 @@ export default function DJApp() {
             plays the loop ·{' '}
           </span>
           <span className="text-white/60">Tap &amp; hold</span> Bind Chop then tap a CHOP pad to
-          capture a deck timestamp ·{' '}
-          <span className="text-white/60">Double-tap</span> an EQ knob to reset it.
+          capture the current deck timestamp.
         </footer>
       </main>
+
+      <ConfigModal
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        onStatusChange={() => {
+          /* force re-render so the Connect buttons refresh */
+          setConfigOpen((o) => o);
+        }}
+      />
     </div>
   );
 }
